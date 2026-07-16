@@ -1,0 +1,16 @@
+application:
+  debug: true
+
+network:
+  host: 127.0.0.1
+
+tls:
+  enabled: false
+
+authentication:
+  provider: local
+  allow_local_accounts: true
+
+logging:
+  level: DEBUG
+  console_enabled: true

@@ -580,6 +580,17 @@ url = "https://files.pythonhosted.org/packages/8b/0c/9d30a4ebeb6db2b25a841afbb80
 sha256 = "595633ce89f8ffa71a015caed34a5b2dc1c0cdb3f0f1fbd1e69339cf2abeec35"
 
 [[packages]]
+name = "types-pyyaml"
+version = "6.0.12.20250516"
+
+[[packages.wheels]]
+name = "types_pyyaml-6.0.12.20250516-py3-none-any.whl"
+url = "https://files.pythonhosted.org/packages/99/5f/e0af6f7f6a260d9af67e1db4f54d732abad514252a7a378a6c4d17dd1036/types_pyyaml-6.0.12.20250516-py3-none-any.whl"
+
+[packages.wheels.hashes]
+sha256 = "8478208feaeb53a34cb5d970c56a7cd76b72659442e733e268a94dc72b2d0530"
+
+[[packages]]
 name = "typing-extensions"
 version = "4.16.0"
 

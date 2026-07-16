@@ -37,4 +37,5 @@ def test_run_shows_window_and_returns_event_loop_status(
 
     assert result == 7
     assert application.main_window.isVisible()
+    assert application.container.closed
     application.main_window.hide()

@@ -1,0 +1,20 @@
+application:
+  debug: false
+
+network:
+  host: 127.0.0.1
+
+redis:
+  namespace: bluebubbles-test
+
+workers:
+  session_cleanup_interval_seconds: 10
+  attachment_cleanup_interval_seconds: 10
+  audit_recent_check_interval_seconds: 10
+  audit_full_check_interval_seconds: 10
+  directory_sync_interval_seconds: 10
+  statistics_interval_seconds: 10
+
+authentication:
+  provider: mock
+  directory_sync_interval_seconds: 10

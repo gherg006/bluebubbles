@@ -1,0 +1,21 @@
+application:
+  name: BlueBubbles
+  timezone: UTC
+
+network:
+  host: 127.0.0.1
+  port: 8443
+  request_timeout_seconds: 30
+  websocket_heartbeat_seconds: 30
+  websocket_missed_heartbeat_limit: 3
+
+messaging:
+  client_plaintext_character_limit: 8000
+  default_page_size: 50
+  maximum_page_size: 100
+  edit_window_seconds: 900
+  maximum_group_members: 100
+
+attachments:
+  default_chunk_size_bytes: 1048576
+  maximum_plaintext_size_bytes: 2147483648

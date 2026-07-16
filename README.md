@@ -5,8 +5,8 @@ local-area networks. The project is being built incrementally from the Version
 1.0 engineering specification, with strict separation between shared protocol
 contracts, server code, and the PySide6 desktop client.
 
-This repository currently contains the verified repository-and-tooling
-foundation and the shared client/server protocol contracts. Messaging services,
+This repository currently contains the verified foundation, shared protocol
+contracts, and strict client/server configuration layer. Messaging services,
 authentication infrastructure, persistence, and private-key operations are
 added in later specification stages.
 
@@ -17,8 +17,8 @@ added in later specification stages.
 - Debian 13 for the production server
 
 PostgreSQL and Redis become necessary when their corresponding implementation
-stages are introduced. The repository-and-tooling stage does not connect to
-external services.
+stages are introduced. Configuration validates their connection details but
+does not connect to either service yet.
 
 ## Development setup
 
@@ -49,23 +49,29 @@ python -m pytest
 
 ## Running the applications
 
-Start the development server:
+Validate and start the development server:
 
 ```powershell
+python -m bluebubbles.server.main validate-config
 python -m bluebubbles.server.main
 ```
 
-The server listens on loopback by default at `http://127.0.0.1:8000`. Start the
-desktop client in a second terminal:
+The development server listens on loopback at `http://127.0.0.1:8443`. Start
+the independently configured Windows desktop client in a second terminal:
 
 ```powershell
 python -m bluebubbles.client.main
 ```
 
-These entry points intentionally expose only the minimal runtime foundation.
-The shared contracts do not alter application startup; later specification
-stages add configuration, lifecycle management, health checks, and user
-workflows.
+The checked-in client configuration targets the eventual encrypted LAN endpoint
+`https://192.168.0.210:8443`. For local development, copy the client YAML and
+set its HTTP/WebSocket endpoints to `http://127.0.0.1:8443` and
+`ws://127.0.0.1:8443/ws`, with `application.environment: development`.
+
+The Debian server and Windows client have separate settings models, loaders,
+configuration files, and environment-variable namespaces. See
+[configuration and deployment](documentation/development/configuration.md) for
+source precedence, protected secret files, TLS guidance, and production setup.
 
 ## Dependency management
 

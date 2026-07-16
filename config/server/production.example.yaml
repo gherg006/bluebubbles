@@ -1,0 +1,46 @@
+# Copy this file outside the source tree as production.yaml and replace every
+# visibly fake path or secret through protected environment/secret-file values.
+application:
+  environment: production
+  debug: false
+  instance_id: 00000000-0000-0000-0000-000000000001
+
+network:
+  host: 192.168.0.210
+  port: 8443
+
+tls:
+  enabled: true
+  certificate_path: /etc/bluebubbles/tls/server.crt
+  private_key_path: /etc/bluebubbles/tls/server.key
+  minimum_tls_version: "1.2"
+
+database:
+  url: postgresql+asyncpg://bluebubbles:replace-through-secret-file@127.0.0.1/bluebubbles
+  echo_sql: false
+
+redis:
+  url: redis://:replace-through-secret-file@127.0.0.1:6379/0
+  fallback_enabled: false
+
+directory:
+  provider: active_directory
+  server: ad.internal.example
+  port: 636
+  use_tls: true
+  bind_dn: CN=replace-me,OU=Service Accounts,DC=internal,DC=example
+  base_dn: DC=internal,DC=example
+
+authentication:
+  provider: directory
+  allow_local_accounts: false
+
+storage:
+  root_path: /var/lib/bluebubbles/attachments
+  temporary_path: /var/lib/bluebubbles/temporary
+  export_path: /var/lib/bluebubbles/exports
+
+logging:
+  directory: /var/log/bluebubbles
+  level: INFO
+  redact_sensitive_values: true

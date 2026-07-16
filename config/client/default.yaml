@@ -1,0 +1,19 @@
+application:
+  name: BlueBubbles
+  environment: production
+
+server:
+  base_url: https://192.168.0.210:8443
+  websocket_url: wss://192.168.0.210:8443/ws
+  connect_timeout_seconds: 10
+  request_timeout_seconds: 30
+  retry_limit: 3
+  automatic_reconnect: true
+
+tls:
+  verify_certificates: true
+  allow_certificate_pinning: true
+
+logging:
+  level: INFO
+  console_enabled: false

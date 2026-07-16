@@ -1,0 +1,13 @@
+# Windows deployment example. Distribute an internal CA file or configure a
+# SHA-256 pin; never disable certificate verification in production.
+application:
+  environment: production
+
+server:
+  base_url: https://192.168.0.210:8443
+  websocket_url: wss://192.168.0.210:8443/ws
+
+tls:
+  verify_certificates: true
+  trusted_ca_path: C:\ProgramData\BlueBubbles\internal-ca.crt
+  expected_hostname: bluebubbles.internal.example

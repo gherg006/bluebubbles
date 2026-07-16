@@ -1,0 +1,12 @@
+application:
+  debug: false
+
+network:
+  host: 127.0.0.1
+
+authentication:
+  provider: local
+  allow_local_accounts: true
+
+redis:
+  namespace: bluebubbles-demo
