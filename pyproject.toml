@@ -1,0 +1,98 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bluebubbles-lan"
+version = "0.1.0"
+description = "Enterprise-grade encrypted LAN messaging platform"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Zak MacLeod" }]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "alembic==1.16.2",
+    "argon2-cffi==25.1.0",
+    "asyncpg==0.30.0",
+    "cryptography==45.0.4",
+    "fastapi==0.115.14",
+    "httpx==0.28.1",
+    "ldap3==2.9.1",
+    "pydantic-settings==2.10.1",
+    "PyNaCl==1.5.0",
+    "PySide6==6.9.1",
+    "redis==6.2.0",
+    "SQLAlchemy[asyncio]==2.0.41",
+    "uvicorn[standard]==0.34.3",
+]
+
+[project.optional-dependencies]
+development = [
+    "black==25.1.0",
+    "build==1.2.2.post1",
+    "mypy==1.16.1",
+    "pytest==8.4.1",
+    "pytest-asyncio==1.0.0",
+    "pytest-cov==6.2.1",
+    "ruff==0.12.2",
+]
+
+[project.scripts]
+bluebubbles-server = "bluebubbles.server.main:main"
+bluebubbles-client = "bluebubbles.client.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+bluebubbles = ["py.typed"]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["A", "B", "C4", "E", "F", "I", "N", "S", "SIM", "UP", "W"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+mypy_path = "src"
+packages = ["bluebubbles"]
+warn_unreachable = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = ["PySide6.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider --strict-config --strict-markers --cov=bluebubbles --cov-report=term-missing --cov-fail-under=90"
+asyncio_mode = "strict"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+branch = true
+source = ["bluebubbles"]
+omit = ["src/bluebubbles/client/main.py", "src/bluebubbles/server/main.py"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
+show_missing = true
