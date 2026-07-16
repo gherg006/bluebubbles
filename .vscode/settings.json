@@ -1,0 +1,9 @@
+{
+    "CodeGPT.apiKey": "OpenAI",
+    "search.exclude": {
+        "specification/complete": true
+    },
+    "files.watcherExclude": {
+        "**/specification/complete/**": true
+    }
+}
