@@ -11,3 +11,6 @@ based on Keep a Changelog, and versions follow Semantic Versioning.
 - Typed server and desktop-client application factories and entry points.
 - Structured JSON logging foundation.
 - Automated formatting, linting, type-checking, and test configuration.
+- Strict shared API, error, pagination, WebSocket, version-negotiation, and
+  encrypted-envelope contracts.
+- Deterministic protocol serialisation and public-key fingerprint helpers.

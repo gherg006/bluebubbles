@@ -6,8 +6,9 @@ local-area networks. The project is being built incrementally from the Version
 contracts, server code, and the PySide6 desktop client.
 
 This repository currently contains the verified repository-and-tooling
-foundation. Messaging, authentication, persistence, and cryptography are added
-in later specification stages.
+foundation and the shared client/server protocol contracts. Messaging services,
+authentication infrastructure, persistence, and private-key operations are
+added in later specification stages.
 
 ## Requirements
 
@@ -61,9 +62,10 @@ desktop client in a second terminal:
 python -m bluebubbles.client.main
 ```
 
-These entry points intentionally expose only the minimal foundation required by
-Task 01. Later specification stages add configuration, lifecycle management,
-health checks, and user workflows.
+These entry points intentionally expose only the minimal runtime foundation.
+The shared contracts do not alter application startup; later specification
+stages add configuration, lifecycle management, health checks, and user
+workflows.
 
 ## Dependency management
 
