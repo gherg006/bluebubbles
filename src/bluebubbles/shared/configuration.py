@@ -10,9 +10,16 @@ from typing import Any
 
 import yaml
 
+from bluebubbles.shared.errors.exceptions import ConfigurationError
 
-class ConfigurationError(ValueError):
-    """Report a safe, actionable configuration failure without secret values."""
+__all__ = [
+    "ConfigurationError",
+    "current_environment",
+    "environment_overrides",
+    "load_yaml_mapping",
+    "merge_configuration",
+    "secret_file_overrides",
+]
 
 
 def merge_configuration(

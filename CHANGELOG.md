@@ -14,3 +14,8 @@ based on Keep a Changelog, and versions follow Semantic Versioning.
 - Strict shared API, error, pagination, WebSocket, version-negotiation, and
   encrypted-envelope contracts.
 - Deterministic protocol serialisation and public-key fingerprint helpers.
+- Separate infrastructure-free Debian server and Windows client domain layers,
+  including membership, session, delivery, upload, audit, transfer, and outbox
+  state invariants.
+- Typed application exception hierarchy, safe REST/WebSocket error envelopes,
+  stable error metadata, bounded retries, and dependency circuit breaking.

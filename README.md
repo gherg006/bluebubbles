@@ -6,9 +6,11 @@ local-area networks. The project is being built incrementally from the Version
 contracts, server code, and the PySide6 desktop client.
 
 This repository currently contains the verified foundation, shared protocol
-contracts, and strict client/server configuration layer. Messaging services,
-authentication infrastructure, persistence, and private-key operations are
-added in later specification stages.
+contracts, strict client/server configuration, domain entities, and typed error
+and recovery primitives. Messaging services, authentication infrastructure,
+persistence, and private-key operations are added in later specification
+stages. See [domain models and error handling](documentation/development/domain-models-and-errors.md)
+for the server/client plaintext boundary and error compatibility rules.
 
 ## Requirements
 

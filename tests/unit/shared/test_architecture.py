@@ -45,3 +45,25 @@ def test_every_shared_module_has_documentation() -> None:
     for source_file in _shared_files():
         tree = ast.parse(source_file.read_text(encoding="utf-8"))
         assert ast.get_docstring(tree), source_file
+
+
+def test_client_and_server_domain_packages_are_independently_importable() -> None:
+    source_root = Path(__file__).resolve().parents[3] / "src" / "bluebubbles"
+    for package, forbidden in (
+        ("client", "bluebubbles.server"),
+        ("server", "bluebubbles.client"),
+    ):
+        for source_file in (source_root / package / "domain").rglob("*.py"):
+            tree = ast.parse(source_file.read_text(encoding="utf-8"))
+            imports = [
+                node.module
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom) and node.module is not None
+            ]
+            imports.extend(
+                alias.name
+                for node in ast.walk(tree)
+                if isinstance(node, ast.Import)
+                for alias in node.names
+            )
+            assert not any(name.startswith(forbidden) for name in imports), source_file

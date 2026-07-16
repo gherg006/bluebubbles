@@ -28,23 +28,30 @@ def test_every_error_code_has_stable_metadata() -> None:
     assert get_error_metadata(ErrorCode.CONFLICT).http_status == 409
     assert (
         get_error_metadata(ErrorCode.RATE_LIMIT_EXCEEDED).retry
-        is RetryClassification.AFTER_DELAY
+        is RetryClassification.RETRY_AFTER
     )
     assert get_error_metadata(ErrorCode.INTERNAL_ERROR).http_status == 500
 
 
 def test_api_error_serialises_only_explicit_safe_fields() -> None:
     response = ApiErrorResponse(
-        code=ErrorCode.INVALID_LOGIN,
-        error=ApiErrorDetail(message="Login failed"),
+        error=ApiErrorDetail(
+            code=ErrorCode.INVALID_LOGIN,
+            message="Login failed",
+            retryable=False,
+        ),
         correlation_id=uuid4(),
     )
     assert response.model_dump()["success"] is False
     with pytest.raises(ValidationError, match="Extra inputs"):
         ApiErrorResponse.model_validate(
             {
-                "code": "INVALID_LOGIN",
-                "error": {"message": "Login failed"},
+                "error": {
+                    "code": "INVALID_LOGIN",
+                    "message": "Login failed",
+                    "retryable": False,
+                },
+                "correlation_id": str(uuid4()),
                 "technical_exception": "LDAP stack trace",
             }
         )
