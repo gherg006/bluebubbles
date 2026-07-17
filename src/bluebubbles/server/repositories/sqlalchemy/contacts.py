@@ -48,11 +48,13 @@ class SqlAlchemyContactRepository:
             record = ContactRelationshipORM(
                 owner_user_id=contact.owner_id,
                 contact_user_id=contact.contact_id,
+                nickname=contact.nickname,
                 created_at=contact.created_at,
                 updated_at=contact.updated_at,
             )
             self._session.add(record)
         record.is_favourite = contact.is_favourite
+        record.nickname = contact.nickname
         record.is_blocked = contact.is_blocked
         record.weight = contact.weight_score
         record.last_contacted_at = contact.last_contacted
@@ -81,6 +83,7 @@ class SqlAlchemyContactRepository:
             updated_at=record.updated_at,
             owner_id=record.owner_user_id,
             contact_id=record.contact_user_id,
+            nickname=record.nickname,
             is_favourite=record.is_favourite,
             is_blocked=record.is_blocked,
             last_contacted=record.last_contacted_at,

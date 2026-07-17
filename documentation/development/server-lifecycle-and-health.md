@@ -99,7 +99,7 @@ publishing it without that boundary would violate the specification.
 Task 08 uses the existing database, Redis, storage, monitoring, application, and
 protocol settings without adding configuration keys. It adds no schema or Alembic
 revision. The application does not auto-migrate; the database must already be at
-`0002_refresh_reuse`. `validate-config` remains an I/O-free configuration check,
+`0004_group_moderator`. `validate-config` remains an I/O-free configuration check,
 while `run` now correctly refuses to become operational without its critical
 PostgreSQL and storage dependencies.
 

@@ -14,7 +14,7 @@ from bluebubbles.shared.models.conversations import GroupRole
 
 _GROUP_ROLE_RANK = {
     GroupRole.MEMBER: 10,
-    GroupRole.ADMIN: 30,
+    GroupRole.MODERATOR: 30,
     GroupRole.OWNER: 40,
 }
 

@@ -26,6 +26,7 @@ class UserSearchQuery:
     term: str = ""
     limit: int = DEFAULT_PAGE_SIZE
     cursor: str | None = None
+    department: str | None = None
     include_deleted: bool = False
 
     def __post_init__(self) -> None:

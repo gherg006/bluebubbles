@@ -11,6 +11,7 @@ from bluebubbles.shared.errors.models import WebSocketErrorEventData
 from bluebubbles.shared.models.announcements import AnnouncementResponse
 from bluebubbles.shared.models.messages import EncryptedMessageResponse
 from bluebubbles.shared.models.users import PresenceState
+from bluebubbles.shared.security.key_models import PublicKeyType
 
 
 class AuthenticationEventData(ContractModel):
@@ -85,6 +86,25 @@ class GroupMembershipEventData(ContractModel):
     changed_at: datetime
 
 
+class ConversationChangedEventData(ContractModel):
+    """Report creation or metadata/role changes without message content."""
+
+    conversation_id: UUID
+    actor_id: UUID
+    user_id: UUID | None = None
+    changed_at: datetime
+
+
+class PublicKeyChangedEventData(ContractModel):
+    """Tell clients to invalidate one user's cached public-key purpose."""
+
+    user_id: UUID
+    key_type: PublicKeyType
+    key_version: Annotated[int, Field(ge=1)]
+    fingerprint: Annotated[str, Field(min_length=1, max_length=128)]
+    changed_at: datetime
+
+
 class SessionRevokedEventData(ContractModel):
     """Notify a client that an application session is no longer valid."""
 
@@ -126,6 +146,10 @@ EVENT_DATA_MODELS: dict[str, type[ContractModel]] = {
     "PRESENCE_CHANGED": PresenceEventData,
     "GROUP_MEMBER_ADDED": GroupMembershipEventData,
     "GROUP_MEMBER_REMOVED": GroupMembershipEventData,
+    "CONVERSATION_CREATED": ConversationChangedEventData,
+    "GROUP_UPDATED": ConversationChangedEventData,
+    "GROUP_ROLE_UPDATED": ConversationChangedEventData,
+    "KEY_CHANGED": PublicKeyChangedEventData,
     "SESSION_REVOKED": SessionRevokedEventData,
     "ANNOUNCEMENT_PUBLISHED": AnnouncementPublishedEventData,
     "POLICY_UPDATED": PolicyUpdatedEventData,

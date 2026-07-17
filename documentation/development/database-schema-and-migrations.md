@@ -74,10 +74,11 @@ URL (or use `BLUEBUBBLES_DATABASE_URL` for a short-lived development shell), the
 alembic upgrade head
 ```
 
-The application-compatible head is `0002_refresh_reuse`. The second
-revision adds the nullable previous-refresh digest used to distinguish immediate
-rotated-token reuse from an arbitrary invalid token; it never stores raw token
-material. Runtime readiness calls
+The application-compatible head is `0004_group_moderator`. Revision 0002 adds the
+nullable previous-refresh digest used to distinguish immediate rotated-token reuse
+from an arbitrary invalid token; revision 0003 persists owner-private contact
+nicknames; revision 0004 migrates the legacy group `admin` spelling to
+`moderator`. None stores secret or message material. Runtime readiness calls
 the read-only revision verifier and refuses normal operation for an unversioned,
 older, or unknown-ahead schema. The server does not auto-migrate production.
 

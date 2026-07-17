@@ -73,6 +73,8 @@ class SqlAlchemyUserRepository:
                     UserORM.email.ilike(pattern),
                 )
             )
+        if query.department is not None:
+            statement = statement.where(UserORM.department.ilike(query.department))
         if query.cursor is not None:
             username_value, id_value = decode_cursor(query.cursor, 2)
             if not isinstance(username_value, str) or not isinstance(id_value, str):

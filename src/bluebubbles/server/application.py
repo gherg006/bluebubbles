@@ -15,6 +15,11 @@ from bluebubbles.server.configuration.settings import ServerSettings
 from bluebubbles.server.container import ServerContainer
 from bluebubbles.server.dependencies import get_server_container
 from bluebubbles.server.routes.authentication import router as authentication_router
+from bluebubbles.server.routes.contacts import router as contacts_router
+from bluebubbles.server.routes.conversations import router as conversations_router
+from bluebubbles.server.routes.groups import router as groups_router
+from bluebubbles.server.routes.keys import router as keys_router
+from bluebubbles.server.routes.users import router as users_router
 from bluebubbles.shared.errors.exceptions import BlueBubblesError
 from bluebubbles.shared.errors.mappings import get_error_metadata
 from bluebubbles.shared.errors.translation import (
@@ -68,6 +73,11 @@ def create_application(
     )
     application.state.container = resolved_container
     application.include_router(authentication_router)
+    application.include_router(users_router)
+    application.include_router(contacts_router)
+    application.include_router(keys_router)
+    application.include_router(conversations_router)
+    application.include_router(groups_router)
 
     @application.exception_handler(BlueBubblesError)
     async def application_error_handler(

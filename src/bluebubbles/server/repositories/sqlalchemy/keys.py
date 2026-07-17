@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bluebubbles.server.database.models.keys import UserPublicKeyORM
@@ -20,28 +20,58 @@ class SqlAlchemyPublicKeyRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def add(self, key: PublicKeyRecord, *, key_type: str) -> PublicKeyRecord:
+    async def add(
+        self, key: PublicKeyRecord, *, key_type: str | None = None
+    ) -> PublicKeyRecord:
         """Stage one public key revision."""
-        if key_type not in {"encryption", "signing"}:
+        selected_type = key_type or key.key_type
+        if selected_type not in {"encryption", "signing"}:
             raise ValueError("Key type must be encryption or signing")
+        key.key_type = selected_type
+        await self._session.execute(
+            update(UserPublicKeyORM)
+            .where(
+                UserPublicKeyORM.user_id == key.user_id,
+                UserPublicKeyORM.key_type == selected_type,
+                UserPublicKeyORM.is_primary.is_(True),
+            )
+            .values(is_primary=False)
+        )
         self._session.add(
             UserPublicKeyORM(
                 id=key.id,
                 user_id=key.user_id,
-                key_type=key_type,
+                key_type=selected_type,
                 key_version=key.key_version,
                 public_key=key.public_key,
                 fingerprint=key.fingerprint,
                 algorithm=key.algorithm,
-                expires_at=None,
+                expires_at=key.expires_at,
                 revoked_at=key.revoked_at,
                 revocation_reason=None,
-                is_primary=key.revoked_at is None,
+                is_primary=key.is_primary and key.revoked_at is None,
                 created_at=key.created_at,
             )
         )
         await flush_changes(self._session)
         return key
+
+    async def get_version(
+        self, user_id: UUID, *, key_type: str, key_version: int
+    ) -> PublicKeyRecord | None:
+        """Return one retained key revision by purpose and version."""
+        statement = select(UserPublicKeyORM).where(
+            UserPublicKeyORM.user_id == user_id,
+            UserPublicKeyORM.key_type == key_type,
+            UserPublicKeyORM.key_version == key_version,
+        )
+        record = (await self._session.execute(statement)).scalar_one_or_none()
+        return self._to_domain(record) if record is not None else None
+
+    async def get_by_id(self, key_id: UUID) -> PublicKeyRecord | None:
+        """Return one retained public-key revision by server identity."""
+        record = await self._session.get(UserPublicKeyORM, key_id)
+        return self._to_domain(record) if record is not None else None
 
     async def get_active(
         self, user_id: UUID, *, key_type: str
@@ -52,6 +82,10 @@ class SqlAlchemyPublicKeyRepository:
             UserPublicKeyORM.key_type == key_type,
             UserPublicKeyORM.is_primary.is_(True),
             UserPublicKeyORM.revoked_at.is_(None),
+            or_(
+                UserPublicKeyORM.expires_at.is_(None),
+                UserPublicKeyORM.expires_at > func.now(),
+            ),
         )
         record = (await self._session.execute(statement)).scalar_one_or_none()
         return self._to_domain(record) if record is not None else None
@@ -98,5 +132,8 @@ class SqlAlchemyPublicKeyRepository:
             algorithm=record.algorithm,
             public_key=record.public_key,
             fingerprint=record.fingerprint,
+            key_type=record.key_type,
+            expires_at=record.expires_at,
+            is_primary=record.is_primary,
             revoked_at=record.revoked_at,
         )

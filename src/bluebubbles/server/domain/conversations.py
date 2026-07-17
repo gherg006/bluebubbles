@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -19,6 +20,9 @@ class ConversationEventType(StrEnum):
     ROLE_CHANGED = "role_changed"
     OWNERSHIP_TRANSFERRED = "ownership_transferred"
     RENAMED = "renamed"
+    GROUP_CREATED = "group_created"
+    MEMBER_LEFT = "member_left"
+    CONVERSATION_CREATED = "conversation_created"
 
 
 @dataclass(kw_only=True)
@@ -30,6 +34,9 @@ class ConversationMember(BaseEntity):
     role: GroupRole = GroupRole.MEMBER
     joined_at: datetime
     left_at: datetime | None = None
+    is_muted: bool = False
+    is_pinned: bool = False
+    is_archived: bool = False
 
     @property
     def active(self) -> bool:
@@ -66,6 +73,8 @@ class Conversation(BaseEntity):
             and not (self.title or "").strip()
         ):
             raise ValueError("Group conversations require a title")
+        if self.title is not None:
+            self.title = _normalise_title(self.title)
 
     def active_member(self, user_id: UUID) -> ConversationMember | None:
         """Return the active membership for ``user_id`` if one exists."""
@@ -76,10 +85,7 @@ class Conversation(BaseEntity):
         """Rename a group conversation."""
         if self.conversation_type is not ConversationType.GROUP:
             raise ValueError("Direct conversations cannot be renamed")
-        title = title.strip()
-        if not title:
-            raise ValueError("Conversation title is required")
-        self.title = title
+        self.title = _normalise_title(title)
         self.last_activity = at
         self.touch(at)
 
@@ -112,7 +118,7 @@ class Conversation(BaseEntity):
         target = self.active_member(target_id)
         validate_group_owner_transition(current, target)
         assert current is not None and target is not None
-        current.role = GroupRole.ADMIN
+        current.role = GroupRole.MODERATOR
         target.role = GroupRole.OWNER
         current.touch(at)
         target.touch(at)
@@ -169,7 +175,7 @@ def is_active_member(conversation: Conversation, user_id: UUID) -> bool:
 def can_add_member(conversation: Conversation, actor_id: UUID) -> bool:
     """Return whether an active owner or administrator may add a member."""
     actor = conversation.active_member(actor_id)
-    return actor is not None and actor.role in {GroupRole.OWNER, GroupRole.ADMIN}
+    return actor is not None and actor.role in {GroupRole.OWNER, GroupRole.MODERATOR}
 
 
 def can_remove_member(
@@ -180,7 +186,10 @@ def can_remove_member(
     target = conversation.active_member(target_id)
     if actor is None or target is None or target.role is GroupRole.OWNER:
         return False
-    return actor_id == target_id or actor.role in {GroupRole.OWNER, GroupRole.ADMIN}
+    return actor_id == target_id or actor.role in {
+        GroupRole.OWNER,
+        GroupRole.MODERATOR,
+    }
 
 
 def can_transfer_ownership(
@@ -205,3 +214,12 @@ def validate_group_owner_transition(
         raise ValueError("Current owner membership is required")
     if target is None or target.user_id == current.user_id:
         raise ValueError("Ownership target must be another active member")
+
+
+def _normalise_title(value: str) -> str:
+    if any(unicodedata.category(character).startswith("C") for character in value):
+        raise ValueError("Conversation titles cannot contain control characters")
+    normalised = " ".join(value.split())
+    if not normalised:
+        raise ValueError("Conversation title is required")
+    return normalised

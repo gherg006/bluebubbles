@@ -4,7 +4,11 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from bluebubbles.server.domain.conversations import Conversation, ConversationMember
+from bluebubbles.server.domain.conversations import (
+    Conversation,
+    ConversationEvent,
+    ConversationMember,
+)
 from bluebubbles.server.repositories.types import ConversationListQuery, CursorPage
 from bluebubbles.shared.models.conversations import GroupRole
 
@@ -25,6 +29,10 @@ class ConversationRepository(Protocol):
     async def create_direct(self, conversation: Conversation) -> Conversation: ...
 
     async def create_group(self, conversation: Conversation) -> Conversation: ...
+
+    async def update(
+        self, conversation: Conversation, *, expected_version: int
+    ) -> Conversation: ...
 
     async def list_for_user(
         self, query: ConversationListQuery
@@ -63,6 +71,12 @@ class ConversationRepository(Protocol):
     async def change_member_role(
         self, membership_id: UUID, role: GroupRole, *, expected_version: int
     ) -> bool: ...
+
+    async def set_archived(
+        self, membership_id: UUID, archived: bool, *, expected_version: int
+    ) -> bool: ...
+
+    async def add_event(self, event: ConversationEvent) -> ConversationEvent: ...
 
     async def update_last_activity(
         self,

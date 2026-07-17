@@ -106,9 +106,9 @@ server transport, debug mode, example secrets, and unauthenticated Redis are
 rejected by production validation. Directory group-role mappings are configuration,
 never code.
 
-An installation upgrading from Task 08 must apply Alembic through
-`0002_refresh_reuse` before startup. The server verifies the head
-and does not auto-migrate.
+An installation upgrading from Task 08 must include `0002_refresh_reuse` and apply
+Alembic through the current application head before startup. The server verifies
+the exact head and does not auto-migrate.
 
 ## Verification
 

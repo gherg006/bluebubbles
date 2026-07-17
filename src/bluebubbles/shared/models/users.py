@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from bluebubbles.shared._model import ContractModel
 from bluebubbles.shared.constants import MAX_DISPLAY_NAME_LENGTH, MAX_STATUS_LENGTH
@@ -54,7 +54,15 @@ class UpdateUserProfileRequest(ContractModel):
         Annotated[str, Field(min_length=1, max_length=MAX_DISPLAY_NAME_LENGTH)] | None
     ) = None
     status_message: Annotated[str, Field(max_length=MAX_STATUS_LENGTH)] | None = None
-    avatar: Annotated[str, Field(max_length=2_000_000)] | None = None
+    avatar: Annotated[str, Field(max_length=500)] | None = None
+
+    @model_validator(mode="after")
+    def _require_change(self) -> "UpdateUserProfileRequest":
+        if not self.model_fields_set:
+            raise ValueError("At least one profile field is required")
+        if "display_name" in self.model_fields_set and self.display_name is None:
+            raise ValueError("Display name cannot be cleared")
+        return self
 
 
 class UserSearchRequest(PageRequest):

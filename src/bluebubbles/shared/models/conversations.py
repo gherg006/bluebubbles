@@ -1,11 +1,12 @@
 """Direct and group conversation API contracts."""
 
+import unicodedata
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from bluebubbles.shared._model import ContractModel
 from bluebubbles.shared.constants import MAX_GROUP_NAME_LENGTH
@@ -17,13 +18,15 @@ class ConversationType(StrEnum):
 
     DIRECT = "direct"
     GROUP = "group"
+    SYSTEM = "system"
 
 
 class GroupRole(StrEnum):
     """Represent a member's authority within a group conversation."""
 
     OWNER = "owner"
-    ADMIN = "admin"
+    MODERATOR = "moderator"
+    ADMIN = "moderator"  # Backwards-compatible source alias.
     MEMBER = "member"
 
 
@@ -61,7 +64,7 @@ class ConversationResponse(ConversationSummaryResponse):
 class CreateDirectConversationRequest(ContractModel):
     """Create a direct conversation with another user."""
 
-    participant_id: UUID
+    target_user_id: UUID
 
 
 class CreateGroupConversationRequest(ContractModel):
@@ -69,7 +72,12 @@ class CreateGroupConversationRequest(ContractModel):
 
     name: Annotated[str, Field(min_length=1, max_length=MAX_GROUP_NAME_LENGTH)]
     member_ids: Annotated[tuple[UUID, ...], Field(min_length=1, max_length=249)]
-    description: Annotated[str, Field(max_length=1000)] | None = None
+    description: Annotated[str, Field(max_length=500)] | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _normalise_name(cls, value: str) -> str:
+        return _normalise_group_name(value)
 
     @model_validator(mode="after")
     def _unique_members(self) -> "CreateGroupConversationRequest":
@@ -84,7 +92,20 @@ class UpdateGroupRequest(ContractModel):
     name: (
         Annotated[str, Field(min_length=1, max_length=MAX_GROUP_NAME_LENGTH)] | None
     ) = None
-    description: Annotated[str, Field(max_length=1000)] | None = None
+    description: Annotated[str, Field(max_length=500)] | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _normalise_name(cls, value: str | None) -> str | None:
+        return _normalise_group_name(value) if value is not None else None
+
+    @model_validator(mode="after")
+    def _require_change(self) -> "UpdateGroupRequest":
+        if not self.model_fields_set:
+            raise ValueError("At least one group field is required")
+        if "name" in self.model_fields_set and self.name is None:
+            raise ValueError("Group name cannot be cleared")
+        return self
 
 
 class AddGroupMemberRequest(ContractModel):
@@ -110,3 +131,18 @@ class TransferOwnershipRequest(ContractModel):
     """Transfer group ownership to an existing member."""
 
     new_owner_id: UUID
+
+
+class ArchiveConversationRequest(ContractModel):
+    """Set the authenticated member's private archive preference."""
+
+    archived: bool = True
+
+
+def _normalise_group_name(value: str) -> str:
+    if any(unicodedata.category(character).startswith("C") for character in value):
+        raise ValueError("Group names cannot contain control characters")
+    normalised = " ".join(value.split())
+    if not normalised:
+        raise ValueError("Group name is required")
+    return normalised

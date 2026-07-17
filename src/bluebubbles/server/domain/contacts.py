@@ -30,6 +30,13 @@ class Contact(BaseEntity):
             self.is_favourite = favourite
             self.touch(at)
 
+    def set_nickname(self, nickname: str | None, at: datetime) -> None:
+        """Set or clear a trimmed owner-specific nickname."""
+        value = nickname.strip() if nickname else None
+        if value != self.nickname:
+            self.nickname = value
+            self.touch(at)
+
     def set_blocked(self, blocked: bool, at: datetime) -> None:
         """Update block state; blocking also removes favourite status."""
         if self.is_blocked != blocked:

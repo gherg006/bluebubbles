@@ -7,12 +7,14 @@ from sqlalchemy import and_, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bluebubbles.server.database.models.conversations import (
+    ConversationEventORM,
     ConversationMemberORM,
     ConversationORM,
     DirectConversationPairORM,
 )
 from bluebubbles.server.domain.conversations import (
     Conversation,
+    ConversationEvent,
     ConversationMember,
     DirectConversationPair,
 )
@@ -122,6 +124,33 @@ class SqlAlchemyConversationRepository:
             [ConversationMapper.member_to_orm(member) for member in active_members]
         )
         await flush_changes(self._session)
+        return conversation
+
+    async def update(
+        self, conversation: Conversation, *, expected_version: int
+    ) -> Conversation:
+        """Persist validated conversation metadata with optimistic concurrency."""
+        result = await self._session.execute(
+            update(ConversationORM)
+            .where(
+                ConversationORM.id == conversation.id,
+                ConversationORM.deleted_at.is_(None),
+                ConversationORM.version == expected_version,
+            )
+            .values(
+                title=conversation.title,
+                description=conversation.description,
+                last_activity_at=conversation.last_activity,
+                updated_at=conversation.updated_at,
+                version=conversation.version,
+            )
+        )
+        if result.rowcount != 1:
+            from bluebubbles.shared.errors.exceptions import ConflictError
+
+            raise ConflictError(
+                user_message="The conversation changed before it could be saved."
+            )
         return conversation
 
     async def list_for_user(
@@ -268,6 +297,40 @@ class SqlAlchemyConversationRepository:
             .values(member_role=role.value, membership_version=expected_version + 1)
         )
         return result.rowcount == 1
+
+    async def set_archived(
+        self, membership_id: UUID, archived: bool, *, expected_version: int
+    ) -> bool:
+        """Set one member's private archive preference."""
+        result = await self._session.execute(
+            update(ConversationMemberORM)
+            .where(
+                ConversationMemberORM.id == membership_id,
+                ConversationMemberORM.removed_at.is_(None),
+                ConversationMemberORM.membership_version == expected_version,
+            )
+            .values(
+                is_archived=archived,
+                membership_version=expected_version + 1,
+            )
+        )
+        return result.rowcount == 1
+
+    async def add_event(self, event: ConversationEvent) -> ConversationEvent:
+        """Stage one safe structured conversation activity event."""
+        self._session.add(
+            ConversationEventORM(
+                id=event.id,
+                conversation_id=event.conversation_id,
+                event_type=event.event_type.value,
+                actor_user_id=event.actor_id,
+                target_user_id=event.subject_id,
+                event_metadata={},
+                created_at=event.occurred_at,
+            )
+        )
+        await flush_changes(self._session)
+        return event
 
     async def update_last_activity(
         self,

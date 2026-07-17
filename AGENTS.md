@@ -2,8 +2,8 @@
 
 Use this file as the shortest route into the repository. Read
 `documentation/INDEX.md` before scanning the tree or opening the embedded complete
-specification. The current completed implementation stage is Task 09,
-authentication and sessions; later business services, general networking,
+specification. The current completed implementation stage is Task 11,
+conversations and groups; encrypted messaging, general networking,
 client database storage, and GUI stages remain out of scope until requested.
 
 ## Fast context route
@@ -26,8 +26,8 @@ client database storage, and GUI stages remain out of scope until requested.
 | `src/bluebubbles/server/database` | Metadata, migrations, session helpers, Unit of Work |
 | `src/bluebubbles/server/monitoring` | Timeout-bounded dependency and storage health aggregation |
 | `src/bluebubbles/server/authentication` | Provider-neutral identities, LDAP/local/mock adapters, Argon2id, signed and opaque token primitives |
-| `src/bluebubbles/server/services` | Authentication, session, permission, login-attempt, and transaction-scoped audit coordination |
-| `src/bluebubbles/server/routes` | Thin FastAPI authentication/session transport boundary |
+| `src/bluebubbles/server/services` | Authentication, sessions, users, contacts, public keys, conversations, groups, permissions, and transaction coordination |
+| `src/bluebubbles/server/routes` | Thin authenticated FastAPI transport boundaries through Task 11 |
 | `src/bluebubbles/server/redis.py` | Redis connectivity, fallback state, and namespaced keys |
 | `src/bluebubbles/server/repositories/interfaces` | Application-facing persistence protocols |
 | `src/bluebubbles/server/repositories/mapping` | Pure ORM/domain conversion |

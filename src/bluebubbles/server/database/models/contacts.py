@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    String,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -38,6 +39,7 @@ class ContactRelationshipORM(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    nickname: Mapped[str | None] = mapped_column(String(100))
     is_favourite: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     weight: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

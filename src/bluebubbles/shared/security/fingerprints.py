@@ -6,11 +6,31 @@ import re
 _CANONICAL = re.compile(r"^[0-9A-F]{4}(?:-[0-9A-F]{4}){15}$")
 
 
-def calculate_public_key_fingerprint(public_key: bytes) -> str:
-    """Return the canonical fingerprint of non-empty public-key bytes."""
+def calculate_public_key_fingerprint(
+    public_key: bytes,
+    *,
+    algorithm: str | None = None,
+    key_type: str | None = None,
+    key_version: int | None = None,
+) -> str:
+    """Return a canonical raw or identity-bound public-key fingerprint."""
     if not public_key:
         raise ValueError("Public key cannot be empty")
-    return format_fingerprint(hashlib.sha256(public_key).hexdigest())
+    qualifiers = (algorithm, key_type, key_version)
+    if all(value is None for value in qualifiers):
+        payload = public_key
+    elif algorithm and key_type and key_version is not None and key_version > 0:
+        payload = b"\x00".join(
+            (
+                algorithm.encode("ascii"),
+                key_type.encode("ascii"),
+                key_version.to_bytes(8, "big"),
+                public_key,
+            )
+        )
+    else:
+        raise ValueError("Complete identity-key fingerprint context is required")
+    return format_fingerprint(hashlib.sha256(payload).hexdigest())
 
 
 def format_fingerprint(value: str | bytes) -> str:

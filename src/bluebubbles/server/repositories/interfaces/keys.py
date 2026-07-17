@@ -10,7 +10,15 @@ from bluebubbles.server.domain.users import PublicKeyRecord
 class PublicKeyRepository(Protocol):
     """Define public-only versioned key persistence."""
 
-    async def add(self, key: PublicKeyRecord, *, key_type: str) -> PublicKeyRecord: ...
+    async def add(
+        self, key: PublicKeyRecord, *, key_type: str | None = None
+    ) -> PublicKeyRecord: ...
+
+    async def get_version(
+        self, user_id: UUID, *, key_type: str, key_version: int
+    ) -> PublicKeyRecord | None: ...
+
+    async def get_by_id(self, key_id: UUID) -> PublicKeyRecord | None: ...
 
     async def get_active(
         self, user_id: UUID, *, key_type: str

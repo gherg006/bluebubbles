@@ -18,8 +18,13 @@ from bluebubbles.server.monitoring.health import HealthAggregator
 from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
 from bluebubbles.server.services.authentication import AuthenticationService
+from bluebubbles.server.services.contacts import ContactService
+from bluebubbles.server.services.conversations import ConversationService
+from bluebubbles.server.services.groups import GroupService
+from bluebubbles.server.services.keys import PublicKeyService
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
+from bluebubbles.server.services.users import UserService
 from bluebubbles.shared.models.health import DetailedHealthResponse
 
 __all__ = [
@@ -50,6 +55,11 @@ class ServerServices:
     authentication: AuthenticationService | None = None
     sessions: SessionService | None = None
     permissions: PermissionService | None = None
+    users: UserService | None = None
+    contacts: ContactService | None = None
+    public_keys: PublicKeyService | None = None
+    conversations: ConversationService | None = None
+    groups: GroupService | None = None
 
 
 class ServerContainer:

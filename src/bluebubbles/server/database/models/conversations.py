@@ -91,7 +91,7 @@ class ConversationMemberORM(Base, UUIDPrimaryKeyMixin):
         ),
         CheckConstraint("membership_version >= 1", name="version_positive"),
         CheckConstraint(
-            "member_role IN ('owner', 'admin', 'member')", name="role_valid"
+            "member_role IN ('owner', 'moderator', 'member')", name="role_valid"
         ),
         CheckConstraint(
             "notification_level IN ('all', 'mentions', 'none')",

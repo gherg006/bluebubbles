@@ -24,6 +24,9 @@ class ConversationMapper:
             role=GroupRole(record.member_role),
             joined_at=record.joined_at,
             left_at=record.removed_at,
+            is_muted=record.is_muted,
+            is_pinned=record.is_pinned,
+            is_archived=record.is_archived,
         )
 
     @staticmethod
@@ -38,10 +41,10 @@ class ConversationMapper:
             removed_at=member.left_at,
             last_read_message_id=None,
             last_read_at=None,
-            is_muted=False,
+            is_muted=member.is_muted,
             muted_until=None,
-            is_pinned=False,
-            is_archived=False,
+            is_pinned=member.is_pinned,
+            is_archived=member.is_archived,
             notification_level="all",
             membership_version=member.version,
         )

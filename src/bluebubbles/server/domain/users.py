@@ -52,10 +52,15 @@ class PublicKeyRecord(BaseEntity):
     algorithm: str
     public_key: bytes
     fingerprint: str
+    key_type: str = "encryption"
+    expires_at: datetime | None = None
+    is_primary: bool = True
     revoked_at: datetime | None = None
 
     def __post_init__(self) -> None:
         super().__post_init__()
+        if self.key_type not in {"encryption", "signing"}:
+            raise ValueError("Public key type must be encryption or signing")
         if self.key_version < 1 or not self.public_key or not self.fingerprint:
             raise ValueError("Public key material and a positive version are required")
 

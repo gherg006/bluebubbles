@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from bluebubbles.shared._model import ContractModel
 from bluebubbles.shared.models.users import UserSummary
@@ -38,6 +38,12 @@ class UpdateContactRequest(ContractModel):
 
     nickname: Annotated[str, Field(max_length=100)] | None = None
     is_favourite: bool | None = None
+
+    @model_validator(mode="after")
+    def _require_change(self) -> "UpdateContactRequest":
+        if not self.model_fields_set:
+            raise ValueError("At least one contact field is required")
+        return self
 
 
 class BlockContactRequest(ContractModel):

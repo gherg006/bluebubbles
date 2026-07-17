@@ -25,9 +25,14 @@ from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
 from bluebubbles.server.services.audit import AuthenticationAuditWriter
 from bluebubbles.server.services.authentication import AuthenticationService
+from bluebubbles.server.services.contacts import ContactService
+from bluebubbles.server.services.conversations import ConversationService
+from bluebubbles.server.services.groups import GroupService
+from bluebubbles.server.services.keys import PublicKeyService
 from bluebubbles.server.services.login_attempts import LoginAttemptService
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
+from bluebubbles.server.services.users import UserService
 from bluebubbles.shared.logging import configure_logging
 
 
@@ -77,6 +82,21 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
         settings.directory,
     )
     permission_service = PermissionService(unit_of_work_factory)
+    user_service = UserService(unit_of_work_factory)
+    contact_service = ContactService(unit_of_work_factory)
+    public_key_service = PublicKeyService(unit_of_work_factory, audit_writer)
+    conversation_service = ConversationService(
+        unit_of_work_factory,
+        permission_service,
+        audit_writer,
+        maximum_group_members=settings.messaging.maximum_group_members,
+    )
+    group_service = GroupService(
+        unit_of_work_factory,
+        permission_service,
+        audit_writer,
+        maximum_group_members=settings.messaging.maximum_group_members,
+    )
     health = HealthAggregator(
         (database_manager, redis_manager, storage_health, authentication_provider),
         timeout_seconds=float(
@@ -103,6 +123,11 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
             authentication=authentication_service,
             sessions=session_service,
             permissions=permission_service,
+            users=user_service,
+            contacts=contact_service,
+            public_keys=public_key_service,
+            conversations=conversation_service,
+            groups=group_service,
         ),
         logger=logger,
     )

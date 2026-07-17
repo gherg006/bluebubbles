@@ -17,6 +17,8 @@ instead of the complete repository or repeated master specification.
 | Transaction ownership | `development/unit-of-work.md` | `src/bluebubbles/server/database/session.py`, `unit_of_work.py` |
 | Server lifecycle and health | `development/server-lifecycle-and-health.md` | `src/bluebubbles/server/application.py`, `container.py`, `database/engine.py`, `redis.py`, `monitoring` |
 | Authentication, sessions, and permissions | `development/authentication-and-sessions.md` | `src/bluebubbles/server/authentication`, `server/services`, `server/routes/authentication.py`, `client/security`, `client/services` |
+| Users, contacts, and public keys | `development/users-contacts-and-public-keys.md` | `server/services/users.py`, `contacts.py`, `keys.py`, matching routes and repositories |
+| Conversations and groups | `development/conversations-and-groups.md` | `server/services/conversations.py`, `groups.py`, matching routes and conversation repository |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -68,6 +70,8 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | Transaction lifecycle and isolation | `tests/unit/server/test_unit_of_work.py`, `tests/integration/test_unit_of_work_postgresql.py` |
 | Startup rollback, dependency health, and readiness | `tests/unit/server/test_lifecycle.py`, `test_application.py`, `tests/integration/test_server_lifecycle_postgresql.py` |
 | Authentication, token rotation, LDAP safety, permissions, and client secret handling | `tests/unit/server/test_authentication.py`, `test_authentication_services.py`, `tests/unit/client/test_authentication_services.py` |
+| User/contact/key lifecycle and authenticated routes | `tests/unit/server/test_user_contact_key_services.py`, `test_task_10_11_routes.py` |
+| Direct/group creation, membership hierarchy, ownership, and archiving | `tests/unit/server/test_conversation_group_services.py`, `test_task_10_11_routes.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths
