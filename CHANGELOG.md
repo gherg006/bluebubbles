@@ -7,6 +7,9 @@ based on Keep a Changelog, and versions follow Semantic Versioning.
 
 ### Added
 
+- Complete PostgreSQL Version 1.0 ORM schema, deterministic naming and constraints,
+  initial Alembic migration, append-only audit trigger, fixed role and permission
+  seeding, schema revision verification, and database contract tests.
 - Repository-and-tooling foundation for Version 1.0.
 - Typed server and desktop-client application factories and entry points.
 - Structured JSON logging foundation.

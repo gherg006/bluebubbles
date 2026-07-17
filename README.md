@@ -6,11 +6,13 @@ local-area networks. The project is being built incrementally from the Version
 contracts, server code, and the PySide6 desktop client.
 
 This repository currently contains the verified foundation, shared protocol
-contracts, strict client/server configuration, domain entities, and typed error
-and recovery primitives. Messaging services, authentication infrastructure,
-persistence, and private-key operations are added in later specification
-stages. See [domain models and error handling](documentation/development/domain-models-and-errors.md)
-for the server/client plaintext boundary and error compatibility rules.
+contracts, strict client/server configuration, domain entities, typed error and
+recovery primitives, and the complete versioned PostgreSQL schema. Repository
+services, authentication infrastructure, and private-key operations are added in
+later specification stages. See [domain models and error handling](documentation/development/domain-models-and-errors.md)
+for the server/client plaintext boundary and error compatibility rules, and
+[database schema and migrations](documentation/development/database-schema-and-migrations.md)
+for the persistence contract and controlled upgrade process.
 
 ## Requirements
 
@@ -18,9 +20,9 @@ for the server/client plaintext boundary and error compatibility rules.
 - Windows 11 for the desktop client
 - Debian 13 for the production server
 
-PostgreSQL and Redis become necessary when their corresponding implementation
-stages are introduced. Configuration validates their connection details but
-does not connect to either service yet.
+PostgreSQL is required to apply or exercise the server schema. Redis becomes
+necessary when its runtime infrastructure stage is introduced. Server lifecycle
+ownership does not connect to either service yet.
 
 ## Development setup
 
@@ -43,10 +45,18 @@ python scripts/development/run_quality_checks.py
 The equivalent individual commands are:
 
 ```powershell
-python -m black --check src tests scripts
-python -m ruff check src tests scripts
-python -m mypy src tests scripts
+python -m black --check src tests scripts migrations
+python -m ruff check src tests scripts migrations
+python -m mypy src tests scripts migrations
 python -m pytest
+```
+
+Render the initial PostgreSQL migration without changing a database, or apply it
+with migration credentials after configuring the protected database URL:
+
+```powershell
+alembic upgrade head --sql
+alembic upgrade head
 ```
 
 ## Running the applications
