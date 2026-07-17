@@ -30,10 +30,24 @@ directory:
   use_tls: true
   bind_dn: CN=replace-me,OU=Service Accounts,DC=internal,DC=example
   base_dn: DC=internal,DC=example
+  user_search_base: OU=Users,DC=internal,DC=example
+  group_search_base: OU=Groups,DC=internal,DC=example
+  username_attribute: sAMAccountName
+  group_membership_attribute: memberOf
+  connection_timeout_seconds: 5
+  search_timeout_seconds: 5
 
 authentication:
   provider: directory
   allow_local_accounts: false
+  default_role: Employee
+  directory_group_role_mapping:
+    CN=BlueBubbles-Administrators,OU=Groups,DC=internal,DC=example: Administrator
+
+tokens:
+  signing_secret: replace-me-with-at-least-32-random-bytes
+  access_token_lifetime_seconds: 900
+  refresh_token_lifetime_seconds: 604800
 
 storage:
   root_path: /var/lib/bluebubbles/attachments

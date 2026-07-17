@@ -44,7 +44,9 @@ work should prefer `UnitOfWorkFactory` so all participants share one transaction
 
 ## Compatibility notes
 
-The repository bundle includes every Task 06 interface: users, sessions, contacts,
+The repository bundle includes every Task 06 interface plus Task 09's focused
+authentication metadata adapter: users, sessions, authentication credentials,
+login attempts and role permissions, contacts,
 public keys, conversations, messages, attachments, audit, announcements,
 administration, configuration, and outbox. The message and attachment adapters now
 accept the interface-level `Sequence` inputs, so their concrete method signatures

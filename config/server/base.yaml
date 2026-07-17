@@ -19,3 +19,16 @@ messaging:
 attachments:
   default_chunk_size_bytes: 1048576
   maximum_plaintext_size_bytes: 2147483648
+
+authentication:
+  failed_login_limit: 5
+  failed_login_window_seconds: 900
+  application_lockout_seconds: 900
+  default_role: Employee
+
+tokens:
+  signing_algorithm: HS256
+  access_token_lifetime_seconds: 900
+  refresh_token_lifetime_seconds: 604800
+  rotation_enabled: true
+  reuse_detection_enabled: true

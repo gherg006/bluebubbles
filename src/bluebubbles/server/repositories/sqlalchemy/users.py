@@ -121,11 +121,18 @@ class SqlAlchemyUserRepository:
                 UserORM.version == expected,
             )
             .values(
+                username=user.username,
+                normalised_username=user.username,
                 display_name=user.display_name,
                 email=user.email,
                 department=user.department,
                 job_title=user.job_title,
                 role_id=user.role_id,
+                directory_guid=(
+                    str(user.active_directory_guid)
+                    if user.active_directory_guid is not None
+                    else None
+                ),
                 is_enabled=user.is_enabled,
                 avatar_reference=user.profile_picture_reference,
                 status_message=user.status_message,

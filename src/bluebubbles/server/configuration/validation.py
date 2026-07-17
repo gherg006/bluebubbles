@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from bluebubbles.server.configuration.settings import (
     AuthenticationProviderName,
+    DirectoryProviderName,
     EnvironmentName,
     ServerSettings,
 )
@@ -29,6 +30,20 @@ def validate_setting_relationships(settings: ServerSettings) -> None:
             "authentication.directory_sync_interval_seconds must equal "
             "workers.directory_sync_interval_seconds"
         )
+    if (
+        settings.authentication.provider is AuthenticationProviderName.DIRECTORY
+        and settings.directory.provider is DirectoryProviderName.DISABLED
+    ):
+        raise ConfigurationError(
+            "authentication.provider directory requires an enabled directory provider"
+        )
+    if (
+        settings.authentication.provider is AuthenticationProviderName.LOCAL
+        and not settings.authentication.allow_local_accounts
+    ):
+        raise ConfigurationError(
+            "authentication.provider local requires allow_local_accounts"
+        )
 
 
 def validate_production_safety(settings: ServerSettings) -> None:
@@ -38,6 +53,8 @@ def validate_production_safety(settings: ServerSettings) -> None:
     failures: list[str] = []
     if settings.application.debug:
         failures.append("application.debug must be false")
+    if not settings.directory.use_tls:
+        failures.append("directory.use_tls must be true")
     if not settings.tls.enabled:
         failures.append("tls.enabled must be true")
     if settings.authentication.provider in {

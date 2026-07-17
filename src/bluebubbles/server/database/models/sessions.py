@@ -48,6 +48,7 @@ class SessionORM(Base, UUIDPrimaryKeyMixin, CreatedAtMixin):
     client_version: Mapped[str] = mapped_column(String(50), nullable=False)
     source_ip: Mapped[str | None] = mapped_column(IP_ADDRESS_TYPE)
     refresh_token_hash: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    previous_refresh_token_hash: Mapped[bytes | None] = mapped_column(LargeBinary)
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

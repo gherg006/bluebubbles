@@ -10,6 +10,9 @@ from bluebubbles.server.repositories.sqlalchemy.attachments import (
     SqlAlchemyAttachmentRepository,
 )
 from bluebubbles.server.repositories.sqlalchemy.audit import SqlAlchemyAuditRepository
+from bluebubbles.server.repositories.sqlalchemy.authentication import (
+    SqlAlchemyAuthenticationRepository,
+)
 from bluebubbles.server.repositories.sqlalchemy.configuration import (
     SqlAlchemyConfigurationRepository,
 )
@@ -37,6 +40,7 @@ __all__ = [
     "SqlAlchemyAdministrationRepository",
     "SqlAlchemyAnnouncementRepository",
     "SqlAlchemyAttachmentRepository",
+    "SqlAlchemyAuthenticationRepository",
     "SqlAlchemyAuditRepository",
     "SqlAlchemyConfigurationRepository",
     "SqlAlchemyContactRepository",

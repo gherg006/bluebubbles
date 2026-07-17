@@ -1,6 +1,7 @@
 """PostgreSQL schema, seed catalogue, and migration compatibility helpers."""
 
 from bluebubbles.server.database.base import NAMING_CONVENTION, Base
+from bluebubbles.server.database.engine import DatabaseManager
 from bluebubbles.server.database.migrations import (
     EXPECTED_REVISION,
     SchemaRevisionMismatchError,
@@ -20,6 +21,7 @@ from bluebubbles.server.database.unit_of_work import (
 
 __all__ = [
     "Base",
+    "DatabaseManager",
     "EXPECTED_REVISION",
     "NAMING_CONVENTION",
     "SchemaRevisionMismatchError",

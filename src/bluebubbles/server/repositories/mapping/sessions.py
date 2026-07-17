@@ -17,12 +17,18 @@ class SessionMapper:
             version=record.token_version,
             user_id=record.user_id,
             refresh_token_hash=record.refresh_token_hash.hex(),
+            previous_refresh_token_hash=(
+                record.previous_refresh_token_hash.hex()
+                if record.previous_refresh_token_hash is not None
+                else None
+            ),
             expires_at=record.refresh_expires_at,
             idle_expires_at=record.access_expires_at,
             ip_address=record.source_ip or "unknown",
             device_name=record.device_name,
             platform=record.client_version,
             login_time=record.created_at,
+            device_id=None if record.device_id == record.id else record.device_id,
             invalidated_at=record.invalidated_at,
             invalidation_reason=record.invalidation_reason,
         )
@@ -37,11 +43,16 @@ class SessionMapper:
         return SessionORM(
             id=session.id,
             user_id=session.user_id,
-            device_id=session.id,
+            device_id=session.device_id or session.id,
             device_name=session.device_name,
             client_version=session.platform,
             source_ip=session.ip_address,
             refresh_token_hash=token_hash,
+            previous_refresh_token_hash=(
+                bytes.fromhex(session.previous_refresh_token_hash)
+                if session.previous_refresh_token_hash is not None
+                else None
+            ),
             last_seen_at=session.updated_at,
             access_expires_at=session.idle_expires_at,
             refresh_expires_at=session.expires_at,

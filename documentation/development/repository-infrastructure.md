@@ -11,7 +11,7 @@ session beyond the caller-provided lifetime.
 
 | Package | Responsibility |
 |---|---|
-| `repositories/interfaces` | Typed, infrastructure-neutral contracts for users, sessions, contacts, keys, conversations, messages, attachments, audit, announcements, administration, configuration, and outbox state |
+| `repositories/interfaces` | Typed, infrastructure-neutral contracts for users, sessions, authentication metadata, contacts, keys, conversations, messages, attachments, audit, announcements, administration, configuration, and outbox state |
 | `repositories/mapping` | Pure ORM/domain conversion for users, sessions, conversations, encrypted messages, encrypted attachments, and immutable audit events; mappers never query |
 | `repositories/sqlalchemy` | Async SQLAlchemy 2.x statements, row locking, optimistic updates, bounded cleanup, and safe error translation |
 | `repositories/types.py` | Validated query objects, stable cursor pages, opaque cursor encoding, and complete encrypted chunk metadata |

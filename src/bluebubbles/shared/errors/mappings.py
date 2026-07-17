@@ -55,6 +55,8 @@ def _metadata(code: ErrorCode) -> ErrorMetadata:
         ErrorCode.INVALID_LOGIN,
         ErrorCode.INVALID_TOKEN,
         ErrorCode.SESSION_EXPIRED,
+        ErrorCode.SESSION_COMPROMISED,
+        ErrorCode.SESSION_REVOKED,
     }:
         status = 401
         title = (

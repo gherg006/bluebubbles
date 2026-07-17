@@ -2,9 +2,9 @@
 
 Use this file as the shortest route into the repository. Read
 `documentation/INDEX.md` before scanning the tree or opening the embedded complete
-specification. The current completed implementation stage is Task 07, Unit of Work;
-later service, lifecycle, networking, client-storage, and GUI stages remain out of
-scope until their numbered task is requested.
+specification. The current completed implementation stage is Task 09,
+authentication and sessions; later business services, general networking,
+client database storage, and GUI stages remain out of scope until requested.
 
 ## Fast context route
 
@@ -24,10 +24,17 @@ scope until their numbered task is requested.
 | `src/bluebubbles/server/domain` | Infrastructure-neutral server entities and invariants |
 | `src/bluebubbles/server/database/models` | SQLAlchemy persistence representation only |
 | `src/bluebubbles/server/database` | Metadata, migrations, session helpers, Unit of Work |
+| `src/bluebubbles/server/monitoring` | Timeout-bounded dependency and storage health aggregation |
+| `src/bluebubbles/server/authentication` | Provider-neutral identities, LDAP/local/mock adapters, Argon2id, signed and opaque token primitives |
+| `src/bluebubbles/server/services` | Authentication, session, permission, login-attempt, and transaction-scoped audit coordination |
+| `src/bluebubbles/server/routes` | Thin FastAPI authentication/session transport boundary |
+| `src/bluebubbles/server/redis.py` | Redis connectivity, fallback state, and namespaced keys |
 | `src/bluebubbles/server/repositories/interfaces` | Application-facing persistence protocols |
 | `src/bluebubbles/server/repositories/mapping` | Pure ORM/domain conversion |
 | `src/bluebubbles/server/repositories/sqlalchemy` | PostgreSQL repository adapters; never commit or close sessions |
 | `src/bluebubbles/client/domain` | Client-only local entities; no ORM or GUI |
+| `src/bluebubbles/client/security` | Windows Credential Manager secret storage protocol and adapter |
+| `src/bluebubbles/client/services` | Password-nonretaining login and protected refresh/session ownership |
 | `config` | Layered example/default YAML; secrets stay outside Git |
 | `migrations` | Alembic environment and immutable numbered revisions |
 | `tests/unit` | Deterministic component and contract tests |

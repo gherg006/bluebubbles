@@ -42,6 +42,7 @@ class SessionRepository(Protocol):
         refresh_token_hash: bytes,
         token_version: int,
         last_seen_at: datetime,
+        access_expires_at: datetime | None = None,
     ) -> bool: ...
 
     async def invalidate(

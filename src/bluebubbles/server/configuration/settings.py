@@ -138,6 +138,7 @@ class DirectorySettings(ContractModel):
     email_attribute: str = "mail"
     department_attribute: str = "department"
     job_title_attribute: str = "title"
+    group_membership_attribute: str = "memberOf"
     connection_timeout_seconds: Annotated[int, Field(gt=0)] = 10
     search_timeout_seconds: Annotated[int, Field(gt=0)] = 10
 
@@ -163,10 +164,13 @@ class AuthenticationSettings(ContractModel):
     provider: AuthenticationProviderName = AuthenticationProviderName.LOCAL
     allow_local_accounts: bool = True
     failed_login_limit: Annotated[int, Field(gt=0)] = 5
-    failed_login_window_seconds: Annotated[int, Field(gt=0)] = 300
+    failed_login_window_seconds: Annotated[int, Field(gt=0)] = 900
     application_lockout_seconds: Annotated[int, Field(gt=0)] = 900
     directory_sync_interval_seconds: Annotated[int, Field(gt=0)] = 3600
-    default_role: str = "member"
+    default_role: str = "Employee"
+    directory_group_role_mapping: dict[str, str] = Field(default_factory=dict)
+    username_domain_prefix: str | None = None
+    username_upn_suffix: str | None = None
     one_primary_crypto_device: bool = True
 
 

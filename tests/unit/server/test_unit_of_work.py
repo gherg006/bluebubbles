@@ -27,6 +27,7 @@ def _repositories() -> ServerRepositories:
     return ServerRepositories(
         users=repository,
         sessions=repository,
+        authentication=repository,
         contacts=repository,
         public_keys=repository,
         conversations=repository,

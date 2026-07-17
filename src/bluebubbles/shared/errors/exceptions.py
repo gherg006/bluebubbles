@@ -107,6 +107,18 @@ class AccountDisabledError(AuthenticationError):
     default_code = ErrorCode.ACCOUNT_DISABLED
 
 
+class AccountLockedError(AuthenticationError):
+    """Report a temporary application authentication lockout."""
+
+    default_code = ErrorCode.ACCOUNT_LOCKED
+
+
+class RefreshTokenReuseError(AuthenticationError):
+    """Report a reused or mismatched rotating refresh token."""
+
+    default_code = ErrorCode.SESSION_COMPROMISED
+
+
 class AuthorisationError(BlueBubblesError):
     """Report authenticated access without sufficient authority."""
 

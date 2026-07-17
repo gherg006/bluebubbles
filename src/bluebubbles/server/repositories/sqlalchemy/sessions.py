@@ -40,7 +40,6 @@ class SqlAlchemySessionRepository:
             SessionORM.id == session_id,
             SessionORM.is_active.is_(True),
             SessionORM.invalidated_at.is_(None),
-            SessionORM.access_expires_at > func.now(),
             SessionORM.refresh_expires_at > func.now(),
         )
         if for_update:
@@ -62,7 +61,6 @@ class SqlAlchemySessionRepository:
                 SessionORM.user_id == user_id,
                 SessionORM.is_active.is_(True),
                 SessionORM.invalidated_at.is_(None),
-                SessionORM.access_expires_at > func.now(),
                 SessionORM.refresh_expires_at > func.now(),
             )
             .order_by(SessionORM.created_at.desc(), SessionORM.id)
@@ -102,11 +100,21 @@ class SqlAlchemySessionRepository:
         refresh_token_hash: bytes,
         token_version: int,
         last_seen_at: datetime,
+        access_expires_at: datetime | None = None,
     ) -> bool:
         """Atomically replace a refresh hash after expected version advance."""
         require_aware(last_seen_at, "last_seen_at")
         if not refresh_token_hash or token_version < 1:
             raise ValueError("Refresh hash and positive token version are required")
+        values: dict[str, object] = {
+            "previous_refresh_token_hash": SessionORM.refresh_token_hash,
+            "refresh_token_hash": refresh_token_hash,
+            "token_version": token_version,
+            "last_seen_at": last_seen_at,
+        }
+        if access_expires_at is not None:
+            require_aware(access_expires_at, "access_expires_at")
+            values["access_expires_at"] = access_expires_at
         result = await self._session.execute(
             update(SessionORM)
             .where(
@@ -114,11 +122,7 @@ class SqlAlchemySessionRepository:
                 SessionORM.is_active.is_(True),
                 SessionORM.token_version < token_version,
             )
-            .values(
-                refresh_token_hash=refresh_token_hash,
-                token_version=token_version,
-                last_seen_at=last_seen_at,
-            )
+            .values(**values)
         )
         return result.rowcount == 1
 

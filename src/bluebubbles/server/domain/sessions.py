@@ -30,6 +30,8 @@ class Session(BaseEntity):
     device_name: str
     platform: str
     login_time: datetime
+    device_id: UUID | None = None
+    previous_refresh_token_hash: str | None = None
     invalidated_at: datetime | None = None
     invalidation_reason: str | None = None
 
@@ -41,8 +43,12 @@ class Session(BaseEntity):
             raise ValueError("Session expiry timestamps must be timezone-aware")
 
     def is_expired(self, at: datetime) -> bool:
-        """Return whether absolute or idle expiry has passed."""
+        """Return whether either the access or absolute session limit has passed."""
         return at >= min(self.expires_at, self.idle_expires_at)
+
+    def is_access_expired(self, at: datetime) -> bool:
+        """Return whether the current short-lived access period has passed."""
+        return at >= self.idle_expires_at
 
     def is_active(self, at: datetime) -> bool:
         """Return whether this non-deleted session remains usable."""
@@ -54,7 +60,9 @@ class Session(BaseEntity):
 
     def can_refresh(self, at: datetime) -> bool:
         """Return whether protected refresh rotation may proceed."""
-        return self.is_active(at) and at < self.expires_at
+        return (
+            not self.is_deleted and self.invalidated_at is None and at < self.expires_at
+        )
 
     def invalidate(self, at: datetime, reason: str) -> None:
         """Irreversibly invalidate the session with an auditable reason."""
@@ -64,6 +72,16 @@ class Session(BaseEntity):
             self.invalidated_at = at
             self.invalidation_reason = reason.strip()
             self.touch(at)
+
+    @property
+    def access_expires_at(self) -> datetime:
+        """Return the access-token expiry retained by the persistence schema."""
+        return self.idle_expires_at
+
+    @property
+    def refresh_expires_at(self) -> datetime:
+        """Return the absolute refresh expiry retained by the persistence schema."""
+        return self.expires_at
 
 
 @dataclass(kw_only=True)

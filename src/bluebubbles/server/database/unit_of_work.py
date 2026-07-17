@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self
 
 from sqlalchemy.exc import DBAPIError, IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from bluebubbles.server.repositories.interfaces import (
     AdministrationRepository,
     AnnouncementRepository,
     AttachmentRepository,
     AuditRepository,
+    AuthenticationRepository,
     ConfigurationRepository,
     ContactRepository,
     ConversationRepository,
@@ -28,6 +30,7 @@ from bluebubbles.server.repositories.sqlalchemy import (
     SqlAlchemyAnnouncementRepository,
     SqlAlchemyAttachmentRepository,
     SqlAlchemyAuditRepository,
+    SqlAlchemyAuthenticationRepository,
     SqlAlchemyConfigurationRepository,
     SqlAlchemyContactRepository,
     SqlAlchemyConversationRepository,
@@ -50,6 +53,7 @@ class ServerRepositories:
 
     users: UserRepository
     sessions: SessionRepository
+    authentication: AuthenticationRepository
     contacts: ContactRepository
     public_keys: PublicKeyRepository
     conversations: ConversationRepository
@@ -85,6 +89,7 @@ class SqlAlchemyRepositoryFactory:
         return ServerRepositories(
             users=SqlAlchemyUserRepository(session),
             sessions=SqlAlchemySessionRepository(session),
+            authentication=SqlAlchemyAuthenticationRepository(session),
             contacts=SqlAlchemyContactRepository(session),
             public_keys=SqlAlchemyPublicKeyRepository(session),
             conversations=SqlAlchemyConversationRepository(session),
@@ -103,7 +108,7 @@ class UnitOfWorkFactory:
 
     def __init__(
         self,
-        session_factory: async_sessionmaker[AsyncSession],
+        session_factory: Callable[[], AsyncSession],
         repository_factory: RepositoryFactory,
     ) -> None:
         """Store application-scoped factories without creating a session yet."""
@@ -134,6 +139,7 @@ class UnitOfWork:
         self.repositories = repositories
         self.users = repositories.users
         self.sessions = repositories.sessions
+        self.authentication = repositories.authentication
         self.contacts = repositories.contacts
         self.public_keys = repositories.public_keys
         self.conversations = repositories.conversations

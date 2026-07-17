@@ -8,6 +8,9 @@ from bluebubbles.server.repositories.interfaces.announcements import (
 )
 from bluebubbles.server.repositories.interfaces.attachments import AttachmentRepository
 from bluebubbles.server.repositories.interfaces.audit import AuditRepository
+from bluebubbles.server.repositories.interfaces.authentication import (
+    AuthenticationRepository,
+)
 from bluebubbles.server.repositories.interfaces.configuration import (
     ConfigurationRepository,
 )
@@ -25,6 +28,7 @@ __all__ = [
     "AdministrationRepository",
     "AnnouncementRepository",
     "AttachmentRepository",
+    "AuthenticationRepository",
     "AuditRepository",
     "ConfigurationRepository",
     "ContactRepository",

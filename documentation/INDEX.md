@@ -15,6 +15,8 @@ instead of the complete repository or repeated master specification.
 | PostgreSQL schema and upgrades | `development/database-schema-and-migrations.md` | `src/bluebubbles/server/database/models`, `migrations` |
 | Repository contracts/adapters | `development/repository-infrastructure.md` | `src/bluebubbles/server/repositories` |
 | Transaction ownership | `development/unit-of-work.md` | `src/bluebubbles/server/database/session.py`, `unit_of_work.py` |
+| Server lifecycle and health | `development/server-lifecycle-and-health.md` | `src/bluebubbles/server/application.py`, `container.py`, `database/engine.py`, `redis.py`, `monitoring` |
+| Authentication, sessions, and permissions | `development/authentication-and-sessions.md` | `src/bluebubbles/server/authentication`, `server/services`, `server/routes/authentication.py`, `client/security`, `client/services` |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -64,6 +66,8 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | Schema, seeds, migrations | `tests/unit/server/test_database_schema.py`, `tests/integration/test_database_migration.py` |
 | Repository mapping and behavior | `tests/unit/server/test_repository_*.py`, `tests/integration/test_repository_postgresql.py` |
 | Transaction lifecycle and isolation | `tests/unit/server/test_unit_of_work.py`, `tests/integration/test_unit_of_work_postgresql.py` |
+| Startup rollback, dependency health, and readiness | `tests/unit/server/test_lifecycle.py`, `test_application.py`, `tests/integration/test_server_lifecycle_postgresql.py` |
+| Authentication, token rotation, LDAP safety, permissions, and client secret handling | `tests/unit/server/test_authentication.py`, `test_authentication_services.py`, `tests/unit/client/test_authentication_services.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths
