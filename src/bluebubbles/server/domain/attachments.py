@@ -11,6 +11,7 @@ from bluebubbles.shared.models.attachments import AttachmentStatus
 from bluebubbles.shared.security.algorithms import (
     ContentEncryptionAlgorithm,
     HashAlgorithm,
+    KeyEnvelopeAlgorithm,
 )
 
 
@@ -22,6 +23,10 @@ class AttachmentRecipientKey(BaseEntity):
     recipient_id: UUID
     key_version: int
     encrypted_key: bytes = field(repr=False)
+    algorithm: KeyEnvelopeAlgorithm = (
+        KeyEnvelopeAlgorithm.X25519_HKDF_SHA256_AES_256_GCM_V1
+    )
+    ephemeral_public_key: bytes = field(default=b"", repr=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -58,6 +63,7 @@ class Attachment(BaseEntity):
     hash_algorithm: HashAlgorithm
     encrypted_checksum: bytes = field(repr=False)
     storage_reference: str
+    chunk_size: int | None = None
     status: AttachmentStatus = AttachmentStatus.INITIALISED
     recipient_keys: tuple[AttachmentRecipientKey, ...] = ()
     linked_message_id: UUID | None = None
@@ -70,6 +76,15 @@ class Attachment(BaseEntity):
             raise ValueError("Attachment sizes are invalid")
         if not self.encrypted_checksum or not self.storage_reference:
             raise ValueError("Checksum and opaque storage reference are required")
+        if self.chunk_size is not None and self.chunk_size <= 0:
+            raise ValueError("Attachment chunk size must be positive")
+
+    @property
+    def chunk_count(self) -> int:
+        """Return the persisted chunk count when upload chunking is defined."""
+        if self.chunk_size is None:
+            raise ValueError("Attachment chunk size is required for persistence")
+        return (self.encrypted_size + self.chunk_size - 1) // self.chunk_size
 
     def can_be_linked(self) -> bool:
         """Return whether complete bytes can be linked to a message once."""

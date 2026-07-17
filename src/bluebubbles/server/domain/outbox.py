@@ -18,12 +18,18 @@ class OutboxEvent(BaseEntity):
     protocol_version: int
     payload: Mapping[str, object]
     available_at: datetime
+    aggregate_type: str = "domain"
     published_at: datetime | None = None
     attempts: int = 0
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if not self.event_type or self.protocol_version < 1 or self.attempts < 0:
+        if (
+            not self.event_type
+            or not self.aggregate_type
+            or self.protocol_version < 1
+            or self.attempts < 0
+        ):
             raise ValueError("Outbox event metadata is invalid")
         forbidden = {
             key

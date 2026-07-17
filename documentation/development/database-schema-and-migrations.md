@@ -39,6 +39,8 @@ ordinary access; specialised services later own configuration, audit, and jobs.
 The ORM definitions in `src/bluebubbles/server/database/models/` are the detailed
 column authority. The initial migration creates the same metadata and is verified by
 an offline PostgreSQL DDL test, preventing the migration and ORM from drifting.
+Task 06 access patterns, locking, pagination, mapping, and real-database verification
+are documented in [repository-infrastructure.md](repository-infrastructure.md).
 
 ## Constraints and access rules
 

@@ -13,7 +13,7 @@ class ConfigurationRevision:
 
     revision: int
     changed_at: datetime
-    changed_by: UUID
+    changed_by: UUID | None
     changed_keys: frozenset[str]
     public_values: Mapping[str, object]
 

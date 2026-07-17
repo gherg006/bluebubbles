@@ -1,5 +1,17 @@
 # Changelog
 
+## Task 06 - Repository infrastructure
+
+- Added infrastructure-neutral repository protocols for all Version 1.0 server
+  persistence areas and async SQLAlchemy 2.x adapters using caller-owned sessions.
+- Added pure ORM/domain mappers, deterministic cursor query models, optimistic
+  concurrency, soft-delete visibility, recipient-key scoping, bounded cleanup,
+  audit-chain locking, and skip-locked transactional outbox claiming.
+- Added redacted persistence error translation and explicit encrypted attachment
+  chunk/key metadata requirements; repositories never invent cryptographic values.
+- Added comprehensive unit evidence and an opt-in real PostgreSQL workflow covering
+  user uniqueness and outbox claiming.
+
 All notable changes to BlueBubbles are documented in this file. The format is
 based on Keep a Changelog, and versions follow Semantic Versioning.
 
