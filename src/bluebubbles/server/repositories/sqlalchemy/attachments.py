@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 from datetime import datetime
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,6 +97,99 @@ class SqlAlchemyAttachmentRepository:
         chunks = (await self._session.scalars(chunk_statement)).all()
         received = {item.chunk_index: item.encrypted_size for item in chunks}
         return AttachmentMapper.upload_to_domain(record, received)
+
+    async def record_upload_chunk(
+        self,
+        upload_id: UUID,
+        *,
+        chunk_index: int,
+        encrypted_size: int,
+        encrypted_checksum: str,
+        nonce: bytes,
+        authentication_tag: bytes,
+        received_at: datetime,
+    ) -> None:
+        """Persist recoverable server-confirmed upload progress."""
+        require_aware(received_at, "received_at")
+        existing = await self._session.get(
+            UploadSessionChunkORM, (upload_id, chunk_index)
+        )
+        if existing is not None:
+            if (
+                existing.encrypted_size != encrypted_size
+                or existing.encrypted_checksum != encrypted_checksum
+                or existing.nonce != nonce
+                or existing.authentication_tag != authentication_tag
+            ):
+                raise ConflictError(
+                    user_message="The upload chunk conflicts with stored data."
+                )
+            return
+        self._session.add(
+            UploadSessionChunkORM(
+                upload_session_id=upload_id,
+                chunk_index=chunk_index,
+                encrypted_size=encrypted_size,
+                encrypted_checksum=encrypted_checksum,
+                nonce=nonce,
+                authentication_tag=authentication_tag,
+                received_at=received_at,
+            )
+        )
+        await self._session.execute(
+            update(UploadSessionORM)
+            .where(UploadSessionORM.id == upload_id)
+            .values(
+                received_encrypted_size=UploadSessionORM.received_encrypted_size
+                + encrypted_size,
+                status=AttachmentStatus.UPLOADING.value,
+                updated_at=received_at,
+            )
+        )
+        await flush_changes(self._session)
+
+    async def list_upload_chunks(self, upload_id: UUID) -> list[StoredAttachmentChunk]:
+        """Return recoverable temporary chunk metadata in index order."""
+        session = await self._session.get(UploadSessionORM, upload_id)
+        if session is None:
+            return []
+        statement = (
+            select(UploadSessionChunkORM)
+            .where(UploadSessionChunkORM.upload_session_id == upload_id)
+            .order_by(UploadSessionChunkORM.chunk_index)
+        )
+        return [
+            StoredAttachmentChunk(
+                id=uuid4(),
+                attachment_id=session.attachment_id,
+                index=item.chunk_index,
+                encrypted_size=item.encrypted_size,
+                encrypted_checksum=item.encrypted_checksum,
+                nonce=item.nonce,
+                authentication_tag=item.authentication_tag,
+                storage_reference=f"pending:{upload_id}:{item.chunk_index}",
+                created_at=item.received_at,
+            )
+            for item in (await self._session.scalars(statement)).all()
+        ]
+
+    async def cancel_upload_session(
+        self, upload_id: UUID, cancelled_at: datetime
+    ) -> bool:
+        """Mark an incomplete upload cancelled without deleting audit evidence."""
+        require_aware(cancelled_at, "cancelled_at")
+        result = await self._session.execute(
+            update(UploadSessionORM)
+            .where(
+                UploadSessionORM.id == upload_id,
+                UploadSessionORM.completed_at.is_(None),
+                UploadSessionORM.status.not_in(
+                    [AttachmentStatus.CANCELLED.value, AttachmentStatus.EXPIRED.value]
+                ),
+            )
+            .values(status=AttachmentStatus.CANCELLED.value, updated_at=cancelled_at)
+        )
+        return result.rowcount == 1
 
     async def get_by_id(self, attachment_id: UUID) -> Attachment | None:
         """Return one non-deleted attachment and its recipient key envelopes."""
@@ -226,6 +319,20 @@ class SqlAlchemyAttachmentRepository:
             )
             return True
         return False
+
+    async def set_storage_reference(
+        self, attachment_id: UUID, storage_reference: str
+    ) -> None:
+        """Replace a temporary opaque reference during finalisation."""
+        if not storage_reference:
+            raise ValueError("Storage reference is required")
+        result = await self._session.execute(
+            update(AttachmentORM)
+            .where(AttachmentORM.id == attachment_id)
+            .values(storage_reference=storage_reference)
+        )
+        if result.rowcount != 1:
+            raise ValueError("Attachment does not exist")
 
     async def link_to_message(
         self, attachment_ids: Sequence[UUID], message_id: UUID

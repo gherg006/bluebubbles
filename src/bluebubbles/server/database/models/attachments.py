@@ -120,6 +120,7 @@ class AttachmentRecipientKeyORM(Base, UUIDPrimaryKeyMixin, CreatedAtMixin):
     )
     encrypted_file_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     ephemeral_public_key: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     key_algorithm: Mapped[str] = mapped_column(String(50), nullable=False)
     recipient_key_version: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -211,6 +212,8 @@ class UploadSessionChunkORM(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, primary_key=True)
     encrypted_size: Mapped[int] = mapped_column(Integer, nullable=False)
     encrypted_checksum: Mapped[str] = mapped_column(String(128), nullable=False)
+    nonce: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    authentication_tag: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )

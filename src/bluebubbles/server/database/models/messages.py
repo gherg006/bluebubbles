@@ -33,7 +33,8 @@ class MessageORM(Base, UUIDPrimaryKeyMixin, SoftDeleteMixin, VersionMixin):
     __table_args__ = (
         CheckConstraint("version >= 1", name="version_positive"),
         CheckConstraint(
-            "message_type IN ('text', 'system', 'attachment')",
+            "message_type IN ('text', 'system', 'attachment', "
+            "'text_with_attachment')",
             name="message_type_valid",
         ),
         CheckConstraint("protocol_version >= 1", name="protocol_version_positive"),

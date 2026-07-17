@@ -36,6 +36,7 @@ class AttachmentMapper:
             encrypted_key=record.encrypted_file_key,
             algorithm=KeyEnvelopeAlgorithm(record.key_algorithm),
             ephemeral_public_key=record.ephemeral_public_key,
+            nonce=record.nonce,
         )
 
     @staticmethod
@@ -50,6 +51,7 @@ class AttachmentMapper:
             recipient_user_id=key.recipient_id,
             encrypted_file_key=key.encrypted_key,
             ephemeral_public_key=key.ephemeral_public_key,
+            nonce=key.nonce,
             key_algorithm=key.algorithm.value,
             recipient_key_version=key.key_version,
         )
@@ -82,6 +84,9 @@ class AttachmentMapper:
             status=AttachmentStatus(record.status),
             recipient_keys=tuple(AttachmentMapper.key_to_domain(item) for item in keys),
             linked_message_id=record.message_id,
+            encrypted_metadata=record.encrypted_metadata,
+            metadata_nonce=record.metadata_nonce,
+            metadata_authentication_tag=record.metadata_authentication_tag,
         )
 
     @staticmethod
@@ -109,9 +114,9 @@ class AttachmentMapper:
             encrypted_checksum=base64.b64encode(attachment.encrypted_checksum).decode(
                 "ascii"
             ),
-            encrypted_metadata=None,
-            metadata_nonce=None,
-            metadata_authentication_tag=None,
+            encrypted_metadata=attachment.encrypted_metadata,
+            metadata_nonce=attachment.metadata_nonce,
+            metadata_authentication_tag=attachment.metadata_authentication_tag,
             storage_reference=attachment.storage_reference,
             status=attachment.status.value,
             completed_at=None,
@@ -133,4 +138,5 @@ class AttachmentMapper:
             expires_at=record.expires_at,
             received_chunks=received_chunks,
             completed_at=record.completed_at,
+            status=AttachmentStatus(record.status),
         )

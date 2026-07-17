@@ -6,7 +6,7 @@ from alembic.runtime.migration import MigrationContext
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-EXPECTED_REVISION = "0004_group_moderator"
+EXPECTED_REVISION = "0006_attachment_chunk_auth"
 
 
 class SchemaRevisionMismatchError(RuntimeError):

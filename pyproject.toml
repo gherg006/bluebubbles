@@ -32,6 +32,7 @@ dependencies = [
     "redis==6.2.0",
     "SQLAlchemy[asyncio]==2.0.41",
     "uvicorn[standard]==0.34.3",
+    "websockets==16.1",
 ]
 
 [project.optional-dependencies]

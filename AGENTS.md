@@ -2,9 +2,9 @@
 
 Use this file as the shortest route into the repository. Read
 `documentation/INDEX.md` before scanning the tree or opening the embedded complete
-specification. The current completed implementation stage is Task 11,
-conversations and groups; encrypted messaging, general networking,
-client database storage, and GUI stages remain out of scope until requested.
+specification. The current completed implementation stage is Task 14, WebSocket
+and outbox delivery; client database storage, attachment transfer, search,
+administration, and GUI stages remain out of scope until requested.
 
 ## Fast context route
 
@@ -26,15 +26,18 @@ client database storage, and GUI stages remain out of scope until requested.
 | `src/bluebubbles/server/database` | Metadata, migrations, session helpers, Unit of Work |
 | `src/bluebubbles/server/monitoring` | Timeout-bounded dependency and storage health aggregation |
 | `src/bluebubbles/server/authentication` | Provider-neutral identities, LDAP/local/mock adapters, Argon2id, signed and opaque token primitives |
-| `src/bluebubbles/server/services` | Authentication, sessions, users, contacts, public keys, conversations, groups, permissions, and transaction coordination |
-| `src/bluebubbles/server/routes` | Thin authenticated FastAPI transport boundaries through Task 11 |
+| `src/bluebubbles/server/services` | Authentication, identity, conversations, encrypted messaging, permissions, audit metadata, and transaction coordination |
+| `src/bluebubbles/server/routes` | Thin authenticated FastAPI transport boundaries through Task 14 |
 | `src/bluebubbles/server/redis.py` | Redis connectivity, fallback state, and namespaced keys |
+| `src/bluebubbles/server/websocket` | Authenticated connections, validated dispatch, and recipient-filtered publication |
+| `src/bluebubbles/server/workers` | Lifecycle-owned durable outbox publication |
 | `src/bluebubbles/server/repositories/interfaces` | Application-facing persistence protocols |
 | `src/bluebubbles/server/repositories/mapping` | Pure ORM/domain conversion |
 | `src/bluebubbles/server/repositories/sqlalchemy` | PostgreSQL repository adapters; never commit or close sessions |
 | `src/bluebubbles/client/domain` | Client-only local entities; no ORM or GUI |
-| `src/bluebubbles/client/security` | Windows Credential Manager secret storage protocol and adapter |
-| `src/bluebubbles/client/services` | Password-nonretaining login and protected refresh/session ownership |
+| `src/bluebubbles/client/security` | OS secret storage, private keys, and message/attachment/local cryptography |
+| `src/bluebubbles/client/services` | Login/session ownership and encrypted messaging/offline retry coordination |
+| `src/bluebubbles/client/networking` | Authenticated WebSocket client, reconnection, and event deduplication |
 | `config` | Layered example/default YAML; secrets stay outside Git |
 | `migrations` | Alembic environment and immutable numbered revisions |
 | `tests/unit` | Deterministic component and contract tests |

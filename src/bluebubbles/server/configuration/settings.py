@@ -236,9 +236,11 @@ class AttachmentSettings(ContractModel):
     default_chunk_size_bytes: Annotated[int, Field(gt=0)] = 1_048_576
     minimum_chunk_size_bytes: Annotated[int, Field(gt=0)] = 262_144
     maximum_chunk_size_bytes: Annotated[int, Field(gt=0)] = 8_388_608
-    upload_session_lifetime_seconds: Annotated[int, Field(gt=0)] = 3600
+    upload_session_lifetime_seconds: Annotated[int, Field(gt=0)] = 86_400
     orphan_lifetime_seconds: Annotated[int, Field(gt=0)] = 86_400
     maximum_concurrent_uploads_per_user: Annotated[int, Field(gt=0)] = 3
+    maximum_concurrent_downloads_per_user: Annotated[int, Field(gt=0)] = 3
+    chunk_retry_limit: Annotated[int, Field(ge=0, le=20)] = 3
     blocked_extensions: set[str] = Field(
         default_factory=lambda: {".exe", ".msi", ".bat"}
     )
@@ -335,6 +337,11 @@ class WorkerSettings(ContractModel):
     audit_full_check_interval_seconds: Annotated[int, Field(ge=10)] = 86_400
     directory_sync_interval_seconds: Annotated[int, Field(ge=10)] = 3600
     statistics_interval_seconds: Annotated[int, Field(ge=10)] = 60
+    outbox_interval_seconds: Annotated[float, Field(gt=0)] = 1.0
+    outbox_batch_size: Annotated[int, Field(ge=1, le=1000)] = 100
+    outbox_retry_base_seconds: Annotated[int, Field(ge=1)] = 2
+    outbox_retry_maximum_seconds: Annotated[int, Field(ge=1)] = 30
+    outbox_lock_timeout_seconds: Annotated[int, Field(ge=1)] = 60
 
 
 class FeatureFlagSettings(ContractModel):

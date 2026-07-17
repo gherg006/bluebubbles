@@ -26,6 +26,26 @@ class AttachmentRepository(Protocol):
         self, upload_id: UUID, *, for_update: bool = False
     ) -> UploadSession | None: ...
 
+    async def record_upload_chunk(
+        self,
+        upload_id: UUID,
+        *,
+        chunk_index: int,
+        encrypted_size: int,
+        encrypted_checksum: str,
+        nonce: bytes,
+        authentication_tag: bytes,
+        received_at: datetime,
+    ) -> None: ...
+
+    async def list_upload_chunks(
+        self, upload_id: UUID
+    ) -> list[StoredAttachmentChunk]: ...
+
+    async def cancel_upload_session(
+        self, upload_id: UUID, cancelled_at: datetime
+    ) -> bool: ...
+
     async def get_by_id(self, attachment_id: UUID) -> Attachment | None: ...
 
     async def get_for_user(
@@ -49,6 +69,10 @@ class AttachmentRepository(Protocol):
     async def mark_complete(
         self, attachment_id: UUID, completed_at: datetime, *, expected_version: int
     ) -> bool: ...
+
+    async def set_storage_reference(
+        self, attachment_id: UUID, storage_reference: str
+    ) -> None: ...
 
     async def link_to_message(
         self, attachment_ids: Sequence[UUID], message_id: UUID

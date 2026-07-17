@@ -27,10 +27,11 @@ class AttachmentRecipientKey(BaseEntity):
         KeyEnvelopeAlgorithm.X25519_HKDF_SHA256_AES_256_GCM_V1
     )
     ephemeral_public_key: bytes = field(default=b"", repr=False)
+    nonce: bytes = field(default=b"\x00" * 12, repr=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if self.key_version < 1 or not self.encrypted_key:
+        if self.key_version < 1 or not self.encrypted_key or len(self.nonce) != 12:
             raise ValueError("Attachment recipient key data is incomplete")
 
 
@@ -67,6 +68,9 @@ class Attachment(BaseEntity):
     status: AttachmentStatus = AttachmentStatus.INITIALISED
     recipient_keys: tuple[AttachmentRecipientKey, ...] = ()
     linked_message_id: UUID | None = None
+    encrypted_metadata: bytes | None = field(default=None, repr=False)
+    metadata_nonce: bytes | None = field(default=None, repr=False)
+    metadata_authentication_tag: bytes | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -111,6 +115,7 @@ class UploadSession(BaseEntity):
     expires_at: datetime
     received_chunks: dict[int, int] = field(default_factory=dict)
     completed_at: datetime | None = None
+    status: AttachmentStatus = AttachmentStatus.INITIALISED
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -130,7 +135,11 @@ class UploadSession(BaseEntity):
 
     def can_accept_chunk(self, index: int, size: int, at: datetime) -> bool:
         """Validate chunk bounds and idempotent repeated receipt."""
-        if self.completed_at is not None or self.is_expired(at):
+        if (
+            self.completed_at is not None
+            or self.is_expired(at)
+            or self.status in {AttachmentStatus.CANCELLED, AttachmentStatus.EXPIRED}
+        ):
             return False
         if index < 0 or index >= self.expected_chunk_count or size <= 0:
             return False

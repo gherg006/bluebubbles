@@ -17,14 +17,21 @@ from bluebubbles.server.database.unit_of_work import (
 from bluebubbles.server.monitoring.health import HealthAggregator
 from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
+from bluebubbles.server.services.attachments import AttachmentService
 from bluebubbles.server.services.authentication import AuthenticationService
 from bluebubbles.server.services.contacts import ContactService
 from bluebubbles.server.services.conversations import ConversationService
 from bluebubbles.server.services.groups import GroupService
 from bluebubbles.server.services.keys import PublicKeyService
+from bluebubbles.server.services.messaging import MessagingService
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
 from bluebubbles.server.services.users import UserService
+from bluebubbles.server.websocket.dispatcher import (
+    WebSocketEventDispatcher,
+    WebSocketRateLimiter,
+)
+from bluebubbles.server.websocket.manager import WebSocketConnectionManager
 from bluebubbles.shared.models.health import DetailedHealthResponse
 
 __all__ = [
@@ -60,6 +67,8 @@ class ServerServices:
     public_keys: PublicKeyService | None = None
     conversations: ConversationService | None = None
     groups: GroupService | None = None
+    messaging: MessagingService | None = None
+    attachments: AttachmentService | None = None
 
 
 class ServerContainer:
@@ -76,6 +85,8 @@ class ServerContainer:
         logger: logging.Logger,
         *,
         additional_components: Sequence[LifecycleComponent] = (),
+        websocket_manager: WebSocketConnectionManager | None = None,
+        websocket_dispatcher: WebSocketEventDispatcher | None = None,
     ) -> None:
         """Store explicit singletons without starting external resources.
 
@@ -88,6 +99,10 @@ class ServerContainer:
         self.storage_health = storage_health
         self.unit_of_work_factory = unit_of_work_factory
         self.services = services
+        self.websocket_manager = websocket_manager or WebSocketConnectionManager()
+        self.websocket_dispatcher = websocket_dispatcher or WebSocketEventDispatcher(
+            {}, WebSocketRateLimiter(1), {1}
+        )
         self._logger = logger
         self._components: tuple[LifecycleComponent, ...] = (
             database_manager,

@@ -18,6 +18,7 @@ class AuthenticationEventData(ContractModel):
     """Authenticate a socket using an application access token."""
 
     access_token: SecretStr
+    last_event_id: UUID | None = None
 
 
 class AuthenticatedEventData(ContractModel):
@@ -56,7 +57,7 @@ class MessageStatusEventData(ContractModel):
 
     message_id: UUID
     conversation_id: UUID
-    user_id: UUID
+    user_id: UUID | None = None
     occurred_at: datetime
 
 
@@ -64,14 +65,14 @@ class TypingEventData(ContractModel):
     """Report transient typing state without transmitting draft content."""
 
     conversation_id: UUID
-    user_id: UUID
+    user_id: UUID | None = None
     is_typing: bool
 
 
 class PresenceEventData(ContractModel):
     """Report a user's visible presence state."""
 
-    user_id: UUID
+    user_id: UUID | None = None
     state: PresenceState
     changed_at: datetime
     status_message: Annotated[str, Field(max_length=280)] | None = None
@@ -98,7 +99,7 @@ class ConversationChangedEventData(ContractModel):
 class PublicKeyChangedEventData(ContractModel):
     """Tell clients to invalidate one user's cached public-key purpose."""
 
-    user_id: UUID
+    user_id: UUID | None = None
     key_type: PublicKeyType
     key_version: Annotated[int, Field(ge=1)]
     fingerprint: Annotated[str, Field(min_length=1, max_length=128)]

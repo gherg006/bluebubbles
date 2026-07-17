@@ -5,7 +5,7 @@ application:
 
 server:
   base_url: https://192.168.0.210:8443
-  websocket_url: wss://192.168.0.210:8443/ws
+  websocket_url: wss://192.168.0.210:8443/api/v1/ws
 
 tls:
   verify_certificates: true

@@ -19,6 +19,11 @@ instead of the complete repository or repeated master specification.
 | Authentication, sessions, and permissions | `development/authentication-and-sessions.md` | `src/bluebubbles/server/authentication`, `server/services`, `server/routes/authentication.py`, `client/security`, `client/services` |
 | Users, contacts, and public keys | `development/users-contacts-and-public-keys.md` | `server/services/users.py`, `contacts.py`, `keys.py`, matching routes and repositories |
 | Conversations and groups | `development/conversations-and-groups.md` | `server/services/conversations.py`, `groups.py`, matching routes and conversation repository |
+| Client cryptographic prototype | `development/client-cryptographic-prototype.md` | `client/security/key_store.py`, `key_manager.py`, `message_crypto.py`, `attachment_crypto.py` |
+| Encrypted messaging | `development/encrypted-messaging.md` | `server/services/messaging.py`, `routes/messages.py`, `client/services/messaging.py` |
+| WebSocket and outbox delivery | `development/websocket-and-outbox-delivery.md` | `server/websocket`, `server/workers/outbox.py`, `client/networking` |
+| Attachments and file transfer | `development/attachments-and-file-transfer.md` | `server/services/attachments.py`, `routes/attachments.py`, `server/storage`, `client/services/attachments.py` |
+| Local client storage and search | `development/local-client-storage.md` | `client/storage`, `client/services/local_storage.py`, `client/services/search.py` |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -72,6 +77,11 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | Authentication, token rotation, LDAP safety, permissions, and client secret handling | `tests/unit/server/test_authentication.py`, `test_authentication_services.py`, `tests/unit/client/test_authentication_services.py` |
 | User/contact/key lifecycle and authenticated routes | `tests/unit/server/test_user_contact_key_services.py`, `test_task_10_11_routes.py` |
 | Direct/group creation, membership hierarchy, ownership, and archiving | `tests/unit/server/test_conversation_group_services.py`, `test_task_10_11_routes.py` |
+| Client cryptography, tamper rejection and bounded attachment streaming | `tests/unit/client/test_task_12_crypto.py` |
+| Encrypted messaging transactions, idempotency and ciphertext retry | `tests/unit/server/test_task_13_messaging.py`, `tests/unit/client/test_task_13_client_messaging.py` |
+| WebSocket authentication, recipient filtering, reconnect and outbox poison isolation | `tests/unit/server/test_task_14_websocket_outbox.py`, `tests/unit/client/test_task_14_networking.py` |
+| Encrypted attachment authorisation, resume, storage and verified client transfer | `tests/unit/server/test_task_15_attachments.py`, `tests/unit/client/test_task_15_attachments.py` |
+| Encrypted local persistence, migration, recovery, cache policy and private search | `tests/unit/client/test_task_16_local_storage.py`, `tests/unit/client/test_task_16_search.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths

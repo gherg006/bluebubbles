@@ -1,6 +1,6 @@
 """Encrypted message request, response, status, and pagination contracts."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
@@ -9,6 +9,7 @@ from pydantic import Field, field_validator, model_validator
 
 from bluebubbles.shared._model import ContractModel
 from bluebubbles.shared.models.pagination import CursorPageMetadata
+from bluebubbles.shared.protocol.serialisation import canonical_json_bytes
 from bluebubbles.shared.security.algorithms import (
     ContentEncryptionAlgorithm,
     KeyEnvelopeAlgorithm,
@@ -23,16 +24,21 @@ class MessageType(StrEnum):
     TEXT = "text"
     SYSTEM = "system"
     ATTACHMENT = "attachment"
+    TEXT_WITH_ATTACHMENT = "text_with_attachment"
 
 
 class MessageDeliveryStatus(StrEnum):
     """Represent the server-visible delivery lifecycle."""
 
+    DRAFT = "draft"
     PENDING = "pending"
+    ENCRYPTING = "encrypting"
+    SENDING = "sending"
     STORED = "stored"
     DELIVERED = "delivered"
     READ = "read"
     FAILED = "failed"
+    DELETED = "deleted"
 
 
 class RecipientKeyEnvelopeRequest(ContractModel):
@@ -79,11 +85,14 @@ class SendMessageRequest(ContractModel):
     signature_algorithm: SignatureAlgorithm
     signature: str
     sender_key_version: Annotated[int, Field(ge=1)]
+    protocol_version: Annotated[int, Field(ge=1)] = 1
+    client_created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     encrypted_keys: Annotated[
         tuple[RecipientKeyEnvelopeRequest, ...], Field(min_length=1)
     ]
     reply_to_id: UUID | None = None
     attachment_ids: tuple[UUID, ...] = ()
+    recipient_envelope_digest: str | None = None
 
     @field_validator("ciphertext")
     @classmethod
@@ -113,6 +122,11 @@ class SendMessageRequest(ContractModel):
             raise ValueError("Recipient key envelopes must be unique")
         if len(self.attachment_ids) != len(set(self.attachment_ids)):
             raise ValueError("Attachment identifiers must be unique")
+        expected = recipient_envelope_digest(self.encrypted_keys)
+        if self.recipient_envelope_digest is None:
+            self.recipient_envelope_digest = expected
+        elif self.recipient_envelope_digest != expected:
+            raise ValueError("Recipient envelope digest does not match")
         return self
 
 
@@ -130,12 +144,15 @@ class EncryptedMessageResponse(ContractModel):
     signature_algorithm: SignatureAlgorithm
     signature: str
     sender_key_version: Annotated[int, Field(ge=1)]
+    protocol_version: Annotated[int, Field(ge=1)] = 1
     encrypted_key: RecipientKeyEnvelopeRequest
+    recipient_envelope_digest: str
     sent_at: datetime
     edited_at: datetime | None = None
     reply_to_id: UUID | None = None
     attachment_ids: tuple[UUID, ...] = ()
     delivery_status: MessageDeliveryStatus = MessageDeliveryStatus.STORED
+    version: Annotated[int, Field(ge=1)] = 1
 
 
 class SendMessageResponse(ContractModel):
@@ -154,6 +171,10 @@ class EditMessageRequest(ContractModel):
     encrypted_keys: Annotated[
         tuple[RecipientKeyEnvelopeRequest, ...], Field(min_length=1)
     ]
+    expected_version: Annotated[int, Field(ge=1)] = 1
+    sender_key_version: Annotated[int, Field(ge=1)] = 1
+    edited_at_client: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    recipient_envelope_digest: str | None = None
 
     @field_validator("ciphertext")
     @classmethod
@@ -181,14 +202,42 @@ class EditMessageRequest(ContractModel):
         ids = [item.recipient_id for item in self.encrypted_keys]
         if len(ids) != len(set(ids)):
             raise ValueError("Recipient key envelopes must be unique")
+        expected = recipient_envelope_digest(self.encrypted_keys)
+        if self.recipient_envelope_digest is None:
+            self.recipient_envelope_digest = expected
+        elif self.recipient_envelope_digest != expected:
+            raise ValueError("Recipient envelope digest does not match")
         return self
+
+
+def recipient_envelope_digest(
+    envelopes: tuple[RecipientKeyEnvelopeRequest, ...],
+) -> str:
+    """Return a canonical SHA-256 digest binding every recipient envelope."""
+    import base64
+    import hashlib
+
+    ordered = sorted(envelopes, key=lambda item: item.recipient_id.bytes)
+    canonical = canonical_json_bytes([item.model_dump(mode="json") for item in ordered])
+    return base64.b64encode(hashlib.sha256(canonical).digest()).decode("ascii")
 
 
 class DeletedMessageResponse(ContractModel):
     """Confirm soft deletion without returning prior encrypted content."""
 
     message_id: UUID
+    conversation_id: UUID
+    sender_id: UUID
+    created_at: datetime
     deleted_at: datetime
+    version: Annotated[int, Field(ge=1)]
+    is_deleted: bool = True
+
+
+class DeleteMessageRequest(ContractModel):
+    """Provide optimistic concurrency data for a soft deletion."""
+
+    expected_version: Annotated[int, Field(ge=1)]
 
 
 class MessagePageResponse(ContractModel):

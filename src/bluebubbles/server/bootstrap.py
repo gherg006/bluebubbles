@@ -23,16 +23,35 @@ from bluebubbles.server.database.unit_of_work import (
 from bluebubbles.server.monitoring.health import HealthAggregator
 from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
+from bluebubbles.server.services.attachments import AttachmentService
 from bluebubbles.server.services.audit import AuthenticationAuditWriter
 from bluebubbles.server.services.authentication import AuthenticationService
 from bluebubbles.server.services.contacts import ContactService
 from bluebubbles.server.services.conversations import ConversationService
+from bluebubbles.server.services.events import EventFactory
 from bluebubbles.server.services.groups import GroupService
 from bluebubbles.server.services.keys import PublicKeyService
 from bluebubbles.server.services.login_attempts import LoginAttemptService
+from bluebubbles.server.services.messaging import (
+    MessageEnvelopeValidator,
+    MessagingService,
+)
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
 from bluebubbles.server.services.users import UserService
+from bluebubbles.server.storage import (
+    AttachmentPathBuilder,
+    ChecksumService,
+    LocalFileStorage,
+)
+from bluebubbles.server.websocket.dispatcher import (
+    WebSocketEventDispatcher,
+    WebSocketRateLimiter,
+)
+from bluebubbles.server.websocket.handlers import WebSocketHandlers
+from bluebubbles.server.websocket.manager import WebSocketConnectionManager
+from bluebubbles.server.websocket.publisher import EventPublisher
+from bluebubbles.server.workers.outbox import OutboxPublisherWorker
 from bluebubbles.shared.logging import configure_logging
 
 
@@ -46,6 +65,7 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
     unit_of_work_factory = UnitOfWorkFactory(
         database_manager.create_session, SqlAlchemyRepositoryFactory()
     )
+    websocket_manager = WebSocketConnectionManager()
     audit_writer = AuthenticationAuditWriter()
     token_manager = TokenManager(settings.tokens)
     session_service = SessionService(
@@ -53,6 +73,7 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
         token_manager,
         settings.tokens,
         audit_writer,
+        notifier=websocket_manager,
     )
     provider_name = settings.authentication.provider
     authentication_provider: AuthenticationProvider
@@ -82,6 +103,22 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
         settings.directory,
     )
     permission_service = PermissionService(unit_of_work_factory)
+    checksum_service = ChecksumService()
+    attachment_storage = LocalFileStorage(
+        AttachmentPathBuilder(
+            settings.storage.root_path, settings.storage.temporary_path
+        ),
+        checksum_service,
+    )
+    attachment_service = AttachmentService(
+        unit_of_work_factory,
+        permission_service,
+        attachment_storage,
+        checksum_service,
+        audit_writer,
+        settings.attachments,
+        settings.storage,
+    )
     user_service = UserService(unit_of_work_factory)
     contact_service = ContactService(unit_of_work_factory)
     public_key_service = PublicKeyService(unit_of_work_factory, audit_writer)
@@ -96,6 +133,29 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
         permission_service,
         audit_writer,
         maximum_group_members=settings.messaging.maximum_group_members,
+    )
+    event_factory = EventFactory(settings.protocol.current_version)
+    messaging_service = MessagingService(
+        unit_of_work_factory,
+        permission_service,
+        audit_writer,
+        event_factory,
+        MessageEnvelopeValidator(
+            settings.messaging, set(settings.protocol.supported_versions)
+        ),
+        settings.messaging,
+    )
+    event_publisher = EventPublisher(websocket_manager)
+    websocket_handlers = WebSocketHandlers(
+        unit_of_work_factory, messaging_service, event_publisher
+    )
+    websocket_dispatcher = WebSocketEventDispatcher(
+        websocket_handlers.mapping(),
+        WebSocketRateLimiter(settings.rate_limits.websocket_events_per_minute),
+        set(settings.protocol.supported_versions),
+    )
+    outbox_worker = OutboxPublisherWorker(
+        unit_of_work_factory, event_publisher, settings.workers, logger
     )
     health = HealthAggregator(
         (database_manager, redis_manager, storage_health, authentication_provider),
@@ -128,8 +188,13 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
             public_keys=public_key_service,
             conversations=conversation_service,
             groups=group_service,
+            messaging=messaging_service,
+            attachments=attachment_service,
         ),
         logger=logger,
+        websocket_manager=websocket_manager,
+        websocket_dispatcher=websocket_dispatcher,
+        additional_components=(websocket_manager, outbox_worker),
     )
 
 

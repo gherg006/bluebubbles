@@ -24,6 +24,7 @@ class OfflineAction:
     idempotency_key: UUID
     encrypted_payload: bytes
     created_at: datetime
+    next_attempt_at: datetime | None = None
     state: OfflineActionState = OfflineActionState.PENDING
     attempts: int = 0
     last_error_code: str | None = None

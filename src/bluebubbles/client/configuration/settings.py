@@ -38,7 +38,7 @@ class ServerConnectionSettings(ContractModel):
     """Define how the desktop client reaches the LAN server."""
 
     base_url: AnyHttpUrl = AnyHttpUrl("https://192.168.0.210:8443")
-    websocket_url: AnyUrl = AnyUrl("wss://192.168.0.210:8443/ws")
+    websocket_url: AnyUrl = AnyUrl("wss://192.168.0.210:8443/api/v1/ws")
     connect_timeout_seconds: Annotated[float, Field(gt=0, le=120)] = 10.0
     request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 30.0
     retry_limit: Annotated[int, Field(ge=0, le=20)] = 3
@@ -99,10 +99,15 @@ class ClientStorageSettings(ContractModel):
     """Define installation-wide local storage defaults."""
 
     profile_root: Path = Field(default_factory=_windows_profile_root)
-    default_cache_limit_bytes: Annotated[int, Field(gt=0)] = 1_073_741_824
+    default_cache_limit_bytes: Annotated[int, Field(gt=0)] = 2_147_483_648
     maximum_cache_limit_bytes: Annotated[int, Field(gt=0)] = 5_368_709_120
     thumbnail_cache_limit_bytes: Annotated[int, Field(ge=0)] = 268_435_456
-    encrypted_message_cache_limit_bytes: Annotated[int, Field(ge=0)] = 536_870_912
+    attachment_cache_limit_bytes: Annotated[int, Field(ge=0)] = 1_610_612_736
+    encrypted_message_cache_limit_bytes: Annotated[int, Field(ge=0)] = 268_435_456
+    recent_messages_per_conversation: Annotated[int, Field(ge=0, le=100_000)] = 500
+    cleanup_target_ratio: Annotated[float, Field(ge=0.5, lt=1)] = 0.9
+    disk_warning_free_bytes: Annotated[int, Field(gt=0)] = 2_147_483_648
+    disk_critical_free_bytes: Annotated[int, Field(gt=0)] = 524_288_000
     local_database_backend: str = "sqlite"
     retain_cache_after_logout: bool = True
 
@@ -113,6 +118,10 @@ class ClientStorageSettings(ContractModel):
             raise ValueError(
                 "default_cache_limit_bytes cannot exceed maximum_cache_limit_bytes"
             )
+        if self.disk_critical_free_bytes >= self.disk_warning_free_bytes:
+            raise ValueError(
+                "disk_critical_free_bytes must be below disk_warning_free_bytes"
+            )
         return self
 
 
@@ -121,7 +130,7 @@ class ClientTransferSettings(ContractModel):
 
     default_download_directory: Path = Field(default_factory=_windows_download_root)
     upload_concurrency: Annotated[int, Field(gt=0, le=16)] = 2
-    download_concurrency: Annotated[int, Field(gt=0, le=16)] = 2
+    download_concurrency: Annotated[int, Field(gt=0, le=16)] = 3
     chunk_concurrency: Annotated[int, Field(gt=0, le=16)] = 2
     automatic_image_download_limit_bytes: Annotated[int, Field(ge=0)] = 10_485_760
     default_upload_limit_bytes_per_second: Annotated[int, Field(gt=0)] | None = None

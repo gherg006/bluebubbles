@@ -1,12 +1,28 @@
 """Desktop client dependency construction and environment checks."""
 
+from uuid import UUID
+
 from bluebubbles.client.configuration.settings import ClientSettings
 from bluebubbles.client.container import ClientContainer
+from bluebubbles.client.security.secure_store import SecureStore
+from bluebubbles.client.storage.service import LocalStorageService
 
 
 def build_unauthenticated_container(settings: ClientSettings) -> ClientContainer:
     """Construct the installation-scoped container used before authentication."""
     return ClientContainer(settings)
+
+
+def build_authenticated_container(
+    settings: ClientSettings,
+    profile_id: UUID,
+    secure_store: SecureStore,
+) -> ClientContainer:
+    """Construct a disposable user-specific local-storage container."""
+    return ClientContainer(
+        settings,
+        LocalStorageService(profile_id, settings.storage, secure_store),
+    )
 
 
 def verify_client_environment(settings: ClientSettings) -> None:

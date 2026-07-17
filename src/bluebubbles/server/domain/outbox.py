@@ -31,12 +31,7 @@ class OutboxEvent(BaseEntity):
             or self.attempts < 0
         ):
             raise ValueError("Outbox event metadata is invalid")
-        forbidden = {
-            key
-            for key in self.payload
-            if "plaintext" in key.casefold() or "password" in key.casefold()
-        }
-        if forbidden:
+        if _contains_forbidden_field(self.payload):
             raise ValueError("Outbox payload contains forbidden sensitive fields")
         self.payload = MappingProxyType(dict(self.payload))
 
@@ -52,3 +47,19 @@ class OutboxEvent(BaseEntity):
         if self.published_at is None:
             self.published_at = at
             self.touch(at)
+
+
+def _contains_forbidden_field(value: object) -> bool:
+    """Recursively reject sensitive field names in nested durable payloads."""
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            name = str(key).casefold()
+            if any(
+                marker in name for marker in ("plaintext", "password", "private_key")
+            ):
+                return True
+            if _contains_forbidden_field(item):
+                return True
+    elif isinstance(value, list | tuple):
+        return any(_contains_forbidden_field(item) for item in value)
+    return False

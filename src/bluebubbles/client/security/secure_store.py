@@ -58,7 +58,13 @@ class _CredentialW(ctypes.Structure):
 class WindowsCredentialManagerStore:
     """Store exact binary secrets in the current Windows user's credential vault."""
 
-    _PROFILE_KEYS = ("access_token", "refresh_token", "session_id", "device_id")
+    _PROFILE_KEYS = (
+        "access_token",
+        "refresh_token",
+        "session_id",
+        "device_id",
+        "local_master_key",
+    )
 
     def __init__(self, application_namespace: str = "BlueBubbles") -> None:
         if os.name != "nt":
