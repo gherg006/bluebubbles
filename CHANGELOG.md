@@ -1,5 +1,16 @@
 # Changelog
 
+## Task 07 - Unit of Work
+
+- Added fresh async session construction, a complete immutable repository bundle,
+  SQLAlchemy repository composition, and explicit Unit of Work transaction control.
+- Added rollback-on-error and rollback-on-uncommitted-exit cleanup, safe closure,
+  guarded completion states, and redacted commit error translation.
+- Aligned message and attachment adapters with their `Sequence`-based repository
+  protocols and added focused plus opt-in PostgreSQL transaction tests.
+- Added an AI-focused root guide, canonical repository index, transaction guide,
+  and complete Task 07 verification report.
+
 ## Task 06 - Repository infrastructure
 
 - Added infrastructure-neutral repository protocols for all Version 1.0 server

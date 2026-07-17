@@ -1,5 +1,6 @@
 """Async SQLAlchemy encrypted-message repository."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -140,15 +141,11 @@ class SqlAlchemyMessageRepository:
             next_cursor = encode_cursor(last.server_created_at, last.id)
         return CursorPage(items=tuple(mapped), next_cursor=next_cursor)
 
-    async def insert_recipient_keys(
-        self, keys: tuple[MessageRecipientKey, ...] | list[MessageRecipientKey]
-    ) -> None:
+    async def insert_recipient_keys(self, keys: Sequence[MessageRecipientKey]) -> None:
         """Stage unique per-recipient encrypted message key envelopes."""
         await self.add_recipient_keys(keys)
 
-    async def add_recipient_keys(
-        self, keys: tuple[MessageRecipientKey, ...] | list[MessageRecipientKey]
-    ) -> None:
+    async def add_recipient_keys(self, keys: Sequence[MessageRecipientKey]) -> None:
         """Stage unique per-recipient encrypted message key envelopes."""
         self._session.add_all([MessageMapper.key_to_orm(key) for key in keys])
         await flush_changes(self._session)
@@ -254,9 +251,7 @@ class SqlAlchemyMessageRepository:
         )
         return result.rowcount == 1
 
-    async def create_delivery_rows(
-        self, deliveries: tuple[MessageDelivery, ...] | list[MessageDelivery]
-    ) -> None:
+    async def create_delivery_rows(self, deliveries: Sequence[MessageDelivery]) -> None:
         """Stage durable delivery rows for the supplied recipients."""
         self._session.add_all(
             [

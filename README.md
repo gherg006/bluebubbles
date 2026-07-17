@@ -7,9 +7,10 @@ contracts, server code, and the PySide6 desktop client.
 
 This repository currently contains the verified foundation, shared protocol
 contracts, strict client/server configuration, domain entities, typed error and
-recovery primitives, and the complete versioned PostgreSQL schema. Repository
-services, authentication infrastructure, and private-key operations are added in
-later specification stages. See [domain models and error handling](documentation/development/domain-models-and-errors.md)
+recovery primitives, the complete versioned PostgreSQL schema, repository adapters,
+and explicit Unit of Work transaction ownership. Authentication infrastructure and
+private-key operations are added in later specification stages. Start with the
+[repository index](documentation/INDEX.md), or see [domain models and error handling](documentation/development/domain-models-and-errors.md)
 for the server/client plaintext boundary and error compatibility rules, and
 [database schema and migrations](documentation/development/database-schema-and-migrations.md)
 for the persistence contract and controlled upgrade process.
@@ -20,9 +21,9 @@ for the persistence contract and controlled upgrade process.
 - Windows 11 for the desktop client
 - Debian 13 for the production server
 
-PostgreSQL is required to apply or exercise the server schema. Redis becomes
-necessary when its runtime infrastructure stage is introduced. Server lifecycle
-ownership does not connect to either service yet.
+PostgreSQL is required to apply or exercise the server schema and real persistence
+workflows. Redis becomes necessary when its runtime infrastructure stage is
+introduced. Server lifecycle ownership does not connect to either service yet.
 
 ## Development setup
 

@@ -1,5 +1,6 @@
 """Async SQLAlchemy encrypted-attachment repository."""
 
+from collections.abc import Sequence
 from datetime import datetime
 from uuid import UUID
 
@@ -128,9 +129,7 @@ class SqlAlchemyAttachmentRepository:
         """Stage and flush one complete encrypted chunk metadata record."""
         await self.add_chunks((chunk,))
 
-    async def add_chunks(
-        self, chunks: tuple[StoredAttachmentChunk, ...] | list[StoredAttachmentChunk]
-    ) -> None:
+    async def add_chunks(self, chunks: Sequence[StoredAttachmentChunk]) -> None:
         """Stage and flush complete encrypted chunk metadata records."""
         self._session.add_all(
             [
@@ -174,7 +173,7 @@ class SqlAlchemyAttachmentRepository:
 
     async def add_recipient_keys(
         self,
-        keys: tuple[AttachmentRecipientKey, ...] | list[AttachmentRecipientKey],
+        keys: Sequence[AttachmentRecipientKey],
     ) -> None:
         """Stage and flush unique recipient file-key envelopes."""
         self._session.add_all([AttachmentMapper.key_to_orm(key) for key in keys])
@@ -229,7 +228,7 @@ class SqlAlchemyAttachmentRepository:
         return False
 
     async def link_to_message(
-        self, attachment_ids: tuple[UUID, ...] | list[UUID], message_id: UUID
+        self, attachment_ids: Sequence[UUID], message_id: UUID
     ) -> None:
         """Link complete, currently unlinked attachments to one message."""
         if not attachment_ids:
