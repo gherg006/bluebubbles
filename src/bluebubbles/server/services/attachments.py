@@ -7,6 +7,7 @@ import binascii
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from bluebubbles.server.configuration.settings import (
@@ -325,67 +326,78 @@ class AttachmentService:
         self, uploader: AuthenticatedUser, upload_id: UUID
     ) -> AttachmentResponse:
         now = datetime.now(UTC)
-        async with self._unit_of_work_factory() as uow:
-            session = await uow.attachments.get_upload_session(
-                upload_id, for_update=True
-            )
-            self._require_owned_active(session, uploader.user_id)
-            assert session is not None
-            if not session.is_complete():
-                raise ValidationError(user_message="The upload is incomplete.")
-            attachment = await uow.attachments.get_by_id(session.attachment_id)
-            if attachment is None:
-                raise ResourceNotFoundError()
-            temporary_chunks = await uow.attachments.list_upload_chunks(upload_id)
-            digest = await self._checksums.hash_stream(
-                self._ordered_upload_stream(session, temporary_chunks)
-            )
-            if not self._checksums.verify(attachment.encrypted_checksum, digest):
-                raise ValidationError(
-                    user_message="The encrypted attachment checksum is invalid."
+        finalised_attachment_id: UUID | None = None
+        try:
+            async with self._unit_of_work_factory() as uow:
+                session = await uow.attachments.get_upload_session(
+                    upload_id, for_update=True
                 )
-            reference = await self._storage.finalise_upload(upload_id, attachment.id)
-            if len(temporary_chunks) != session.expected_chunk_count:
-                raise ValidationError(user_message="The upload metadata is incomplete.")
-            chunk_records: list[StoredAttachmentChunk] = []
-            for item in temporary_chunks:
-                index = item.index
-                path_reference = f"{reference}/{index:08d}.chunk"
-                chunk_records.append(
-                    StoredAttachmentChunk(
-                        id=uuid4(),
-                        attachment_id=attachment.id,
-                        index=index,
-                        encrypted_size=item.encrypted_size,
-                        encrypted_checksum=item.encrypted_checksum,
-                        nonce=item.nonce,
-                        authentication_tag=item.authentication_tag,
-                        storage_reference=path_reference,
-                        created_at=now,
+                self._require_owned_active(session, uploader.user_id)
+                assert session is not None
+                if not session.is_complete():
+                    raise ValidationError(user_message="The upload is incomplete.")
+                attachment = await uow.attachments.get_by_id(session.attachment_id)
+                if attachment is None:
+                    raise ResourceNotFoundError()
+                temporary_chunks = await uow.attachments.list_upload_chunks(upload_id)
+                if len(temporary_chunks) != session.expected_chunk_count:
+                    raise ValidationError(
+                        user_message="The upload metadata is incomplete."
                     )
+                digest = await self._checksums.hash_stream(
+                    self._ordered_upload_stream(session, temporary_chunks)
                 )
-            await uow.attachments.add_chunks(chunk_records)
-            await uow.attachments.set_storage_reference(attachment.id, reference)
-            if not await uow.attachments.mark_complete(
-                attachment.id, now, expected_version=attachment.version
-            ):
-                raise ConflictError(
-                    user_message="The attachment changed during finalisation."
+                if not self._checksums.verify(attachment.encrypted_checksum, digest):
+                    raise ValidationError(
+                        user_message="The encrypted attachment checksum is invalid."
+                    )
+                reference = await self._storage.finalise_upload(
+                    upload_id, attachment.id
                 )
-            await self._audit.append(
-                uow.audit,
-                event_type="attachment_upload_completed",
-                occurred_at=now,
-                actor_id=uploader.user_id,
-                source_ip=None,
-                severity=AuditSeverity.INFORMATIONAL,
-                details={
-                    "attachment_id": str(attachment.id),
-                    "conversation_id": str(attachment.conversation_id),
-                    "chunk_count": session.expected_chunk_count,
-                },
-            )
-            await uow.commit()
+                finalised_attachment_id = attachment.id
+                chunk_records: list[StoredAttachmentChunk] = []
+                for item in temporary_chunks:
+                    index = item.index
+                    path_reference = f"{reference}/{index:08d}.chunk"
+                    chunk_records.append(
+                        StoredAttachmentChunk(
+                            id=uuid4(),
+                            attachment_id=attachment.id,
+                            index=index,
+                            encrypted_size=item.encrypted_size,
+                            encrypted_checksum=item.encrypted_checksum,
+                            nonce=item.nonce,
+                            authentication_tag=item.authentication_tag,
+                            storage_reference=path_reference,
+                            created_at=now,
+                        )
+                    )
+                await uow.attachments.add_chunks(chunk_records)
+                await uow.attachments.set_storage_reference(attachment.id, reference)
+                if not await uow.attachments.mark_complete(
+                    attachment.id, now, expected_version=attachment.version
+                ):
+                    raise ConflictError(
+                        user_message="The attachment changed during finalisation."
+                    )
+                await self._audit.append(
+                    uow.audit,
+                    event_type="attachment_upload_completed",
+                    occurred_at=now,
+                    actor_id=uploader.user_id,
+                    source_ip=None,
+                    severity=AuditSeverity.INFORMATIONAL,
+                    details={
+                        "attachment_id": str(attachment.id),
+                        "conversation_id": str(attachment.conversation_id),
+                        "chunk_count": session.expected_chunk_count,
+                    },
+                )
+                await uow.commit()
+        except BaseException:
+            if finalised_attachment_id is not None:
+                await self._storage.delete_attachment(finalised_attachment_id)
+            raise
         attachment.status = AttachmentStatus.COMPLETE
         return self._response(attachment)
 
@@ -439,9 +451,7 @@ class AttachmentService:
                 else None
             ),
             metadata_authentication_tag=(
-                base64.b64encode(attachment.metadata_authentication_tag).decode(
-                    "ascii"
-                )
+                base64.b64encode(attachment.metadata_authentication_tag).decode("ascii")
                 if attachment.metadata_authentication_tag
                 else None
             ),
@@ -453,11 +463,12 @@ class AttachmentService:
         await self.get_authorised_attachment(requester, attachment_id)
         async with self._unit_of_work_factory() as uow:
             chunks = await uow.attachments.list_chunks(attachment_id)
-        if chunk_index < 0 or chunk_index >= len(chunks):
+        selected = next((item for item in chunks if item.index == chunk_index), None)
+        if selected is None:
             raise ResourceNotFoundError()
         return DownloadChunk(
             self._storage.read_attachment_chunk(attachment_id, chunk_index),
-            chunks[chunk_index],
+            selected,
             len(chunks),
         )
 
@@ -501,6 +512,12 @@ class AttachmentService:
             )
         if chunk_count < 1 or chunk_count > 1_000_000:
             raise ValidationError(user_message="The declared chunk count is invalid.")
+        if Path(request.filename).suffix.casefold() in {
+            value.casefold() for value in self._settings.blocked_extensions
+        }:
+            raise ValidationError(
+                user_message="This file type is blocked by server policy."
+            )
 
     @staticmethod
     def _require_owned_active(
@@ -510,6 +527,12 @@ class AttachmentService:
             raise ResourceNotFoundError()
         if session.is_expired(datetime.now(UTC)):
             raise ConflictError(user_message="The upload session has expired.")
+        if session.status in {
+            AttachmentStatus.CANCELLED,
+            AttachmentStatus.EXPIRED,
+            AttachmentStatus.FAILED,
+        }:
+            raise ConflictError(user_message="The upload session is not active.")
         if session.completed_at is not None and not allow_complete:
             raise ConflictError(user_message="The upload session is already complete.")
 

@@ -63,9 +63,10 @@ preserves per-conversation order and server idempotency. Task 13's messaging
 service consumes the repository protocol, so plaintext never enters retry
 storage.
 
-Transfer recovery stores encrypted temporary paths, confirmed chunk indexes,
-session identity and expiry. Completed plaintext downloads remain only in the
-user-selected destination; BlueBubbles does not duplicate them into its cache.
+Transfer recovery stores encrypted temporary and destination paths, confirmed
+chunk indexes, session identity, expiry and the attachment file key. Completed
+plaintext downloads remain only in the user-selected destination; BlueBubbles
+does not duplicate them into its cache.
 
 ## Private local search
 
@@ -91,20 +92,24 @@ unless managed policy requires profile removal. Shutdown stops storage users,
 closes SQLite and releases the profile lock in order.
 
 Maintenance reports usage, enforces limits and cleans expired replaceable data.
-Selective clearing is transactionally scoped. Clear-all closes resources,
-deletes credential entries and local encryption keys, and removes managed profile
-data while leaving the server account untouched. The product does not claim
-physical secure erasure on SSDs; destroying the encryption key is the primary
-protection for remnants.
+Selective clearing transactionally removes rebuildable projections while
+preserving drafts, offline actions and incomplete transfers. Explicit recovery
+quarantines a damaged SQLite database before opening a fresh keyed cache.
+Clear-all validates path containment, closes resources, deletes credential
+entries and local encryption keys, and removes managed profile data while
+leaving the server account untouched. The product does not claim physical
+secure erasure on SSDs; destroying the encryption key is the primary protection
+for remnants.
 
 ## Verification map
 
-`tests/unit/client/test_task_16_local_storage.py` covers profile isolation and
-locking, initial and upgrade migrations, integrity failure, encrypted repository
-round trips, drafts, durable queue restart, transfer recovery, cache accounting
-and clearing. `tests/unit/client/test_task_16_search.py` covers Unicode
+`tests/unit/client/test_task_16_local_storage.py` and
+`test_task_16_storage_lifecycle.py` cover profile isolation and locking, initial
+and upgrade migrations, integrity failure, encrypted repository round trips,
+drafts, durable queue restart, detailed transfer recovery, cache accounting,
+recovery and clearing. `tests/unit/client/test_task_16_search.py` covers Unicode
 normalisation, deterministic purpose-keyed HMAC tokens, multi-token and filtered
 search, edit/delete replacement, rebuilding and plaintext-absence checks.
+`test_task_16_secure_store.py` covers the Windows protected-store adapter.
 Security coverage also checks wrong-key rejection, credential deletion, path
 containment and log/SQLite plaintext absence.
-

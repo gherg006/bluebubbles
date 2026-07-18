@@ -87,8 +87,15 @@ async def upload_chunk(
 ) -> UploadChunkResponse:
     limit = container.settings.attachments.maximum_chunk_size_bytes
     declared = request.headers.get("content-length")
-    if declared is not None and int(declared) > limit:
-        raise ValidationError(user_message="The encrypted chunk is too large.")
+    if declared is not None:
+        try:
+            declared_size = int(declared)
+        except ValueError as error:
+            raise ValidationError(
+                user_message="The encrypted chunk size is invalid."
+            ) from error
+        if declared_size < 1 or declared_size > limit:
+            raise ValidationError(user_message="The encrypted chunk is too large.")
     body = await request.body()
     if not body or len(body) > limit:
         raise ValidationError(user_message="The encrypted chunk size is invalid.")

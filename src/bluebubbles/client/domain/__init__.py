@@ -19,6 +19,7 @@ from bluebubbles.client.domain.transfers import (
     PreparedUpload,
     TransferDirection,
     TransferProgress,
+    TransferRecovery,
     TransferState,
 )
 
@@ -41,5 +42,6 @@ __all__ = [
     "SearchResult",
     "TransferDirection",
     "TransferProgress",
+    "TransferRecovery",
     "TransferState",
 ]

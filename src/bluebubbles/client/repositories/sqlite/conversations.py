@@ -37,9 +37,11 @@ class SQLiteCachedConversationRepository:
                 conversation.conversation_type,
                 conversation.title,
                 conversation.last_activity_at.isoformat(),
-                str(conversation.latest_message_id)
-                if conversation.latest_message_id
-                else None,
+                (
+                    str(conversation.latest_message_id)
+                    if conversation.latest_message_id
+                    else None
+                ),
                 conversation.unread_count,
                 int(conversation.is_muted),
                 int(conversation.is_pinned),
@@ -50,9 +52,7 @@ class SQLiteCachedConversationRepository:
         )
         return changed > 0
 
-    async def get(
-        self, conversation_id: UUID
-    ) -> CachedConversationRecord | None:
+    async def get(self, conversation_id: UUID) -> CachedConversationRecord | None:
         """Return one startup summary from the local cache."""
         row = await self._database.fetch_one(
             "SELECT conversation_type, title, last_activity_at, latest_message_id, "
@@ -75,4 +75,3 @@ class SQLiteCachedConversationRepository:
             bool(row[6]),
             bool(row[7]),
         )
-

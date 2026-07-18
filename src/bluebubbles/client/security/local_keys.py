@@ -50,4 +50,3 @@ class ProfileLocalKeyProvider:
     @property
     def _name(self) -> str:
         return f"profile:{self._profile_id}:local_master_key"
-

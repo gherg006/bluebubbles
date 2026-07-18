@@ -120,7 +120,7 @@ class AttachmentEncryptionService:
             nonce, plaintext, self._context_aad(context, chunk_index, len(plaintext))
         )
         ciphertext, tag = combined[:-16], combined[-16:]
-        digest = hashlib.sha256(nonce + ciphertext + tag).digest()
+        digest = hashlib.sha256(ciphertext).digest()
         return AuthenticatedAttachmentChunk(
             chunk_index, nonce, ciphertext, tag, len(plaintext), digest
         )
@@ -132,9 +132,7 @@ class AttachmentEncryptionService:
         chunk: AuthenticatedAttachmentChunk,
     ) -> bytes:
         """Authenticate one chunk's hash, AAD and GCM tag before returning plaintext."""
-        expected = hashlib.sha256(
-            chunk.nonce + chunk.ciphertext + chunk.authentication_tag
-        ).digest()
+        expected = hashlib.sha256(chunk.ciphertext).digest()
         if not secrets.compare_digest(expected, chunk.encrypted_hash):
             raise CryptographyError(
                 user_message="The encrypted attachment chunk is damaged."

@@ -27,9 +27,7 @@ class CachedConversationRepository(Protocol):
     """Persist versioned conversation summaries."""
 
     async def save(self, conversation: CachedConversationRecord) -> bool: ...
-    async def get(
-        self, conversation_id: UUID
-    ) -> CachedConversationRecord | None: ...
+    async def get(self, conversation_id: UUID) -> CachedConversationRecord | None: ...
 
 
 class PublicKeyCacheRepository(Protocol):

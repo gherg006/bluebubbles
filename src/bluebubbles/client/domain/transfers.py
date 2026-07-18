@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from uuid import UUID
@@ -80,6 +81,38 @@ class PreparedUpload:
 
 
 @dataclass(frozen=True, slots=True)
+class TransferRecovery:
+    """Hold encrypted-at-rest restart detail for an incomplete transfer."""
+
+    temporary_path: Path
+    upload_id: UUID | None = None
+    destination_path: Path | None = None
+    confirmed_chunks: tuple[int, ...] = ()
+    session_expires_at: datetime | None = None
+    file_key: bytes | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if not self.temporary_path.is_absolute():
+            raise ValueError("Transfer recovery paths must be absolute")
+        if (
+            self.destination_path is not None
+            and not self.destination_path.is_absolute()
+        ):
+            raise ValueError("Transfer destination paths must be absolute")
+        if tuple(sorted(set(self.confirmed_chunks))) != self.confirmed_chunks or any(
+            index < 0 for index in self.confirmed_chunks
+        ):
+            raise ValueError("Confirmed transfer chunks are invalid")
+        if (
+            self.session_expires_at is not None
+            and self.session_expires_at.tzinfo is None
+        ):
+            raise ValueError("Transfer session expiry must be timezone-aware")
+        if self.file_key is not None and len(self.file_key) != 32:
+            raise ValueError("Transfer file key must contain 32 bytes")
+
+
+@dataclass(frozen=True, slots=True)
 class FileTransfer:
     """Represent one immutable client transfer-state snapshot."""
 
@@ -89,6 +122,7 @@ class FileTransfer:
     state: TransferState
     progress: TransferProgress
     error_code: str | None = None
+    recovery: TransferRecovery | None = field(default=None, repr=False)
 
     def transition(self, target: TransferState) -> FileTransfer:
         """Return a new state after validating the transition graph."""

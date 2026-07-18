@@ -23,8 +23,12 @@ administration stages.
   uploads in its transaction.
 - Downloads return one authorised recipient envelope and publish plaintext only
   after signature, tag and complete-file verification.
-- Prepared transfer state contains encrypted material and becomes durable through
-  the Task 16 client-storage repository.
+- Prepared uploads keep ciphertext bodies on disk instead of retaining a whole
+  large file in memory; each chunk is revalidated immediately before upload.
+- Recipient download coordination verifies ordered chunk hashes and GCM tags,
+  encrypted metadata and the final plaintext checksum before an atomic publish.
+- Client and server now share the same raw-ciphertext chunk checksum contract;
+  cancelled sessions cannot accept later chunks.
 
 ## Verification evidence
 
@@ -34,11 +38,11 @@ Focused test targets:
 - `tests/unit/client/test_task_15_attachments.py`
 - `tests/unit/client/test_task_12_crypto.py`
 
-Final Black, Ruff, strict mypy, pytest and branch-aware coverage evidence is
-pending completion of the combined Task 15 and Task 16 implementation. The
-mandatory command is `python scripts/development/run_quality_checks.py`; this
-report must be updated with observed results before the stage is declared
-complete.
+The mandatory `scripts/development/run_quality_checks.py` runner completed
+successfully using the locked Python 3.13 environment: Black and Ruff were
+clean, strict mypy found no issues in 291 source files, and pytest reported 255
+passed, 3 intentional PostgreSQL skips and 89.63% branch-aware coverage (meeting
+the configured integer 90% threshold).
 
 ## Environment-bound limitation
 
@@ -46,4 +50,3 @@ Real PostgreSQL migration and repository checks require an already migrated,
 dedicated database named by `BLUEBUBBLES_TEST_DATABASE_URL`. They must skip when
 that safe external dependency is absent. Offline migration rendering, metadata
 checks and temporary-filesystem transfer tests remain mandatory.
-

@@ -152,9 +152,11 @@ class DurableEncryptedMessageQueue:
             queued.append(
                 QueuedEncryptedMessage(
                     request,
-                    MessageDeliveryStatus.FAILED
-                    if action.attempts
-                    else MessageDeliveryStatus.PENDING,
+                    (
+                        MessageDeliveryStatus.FAILED
+                        if action.attempts
+                        else MessageDeliveryStatus.PENDING
+                    ),
                     action.attempts,
                     due_at,
                     action.last_error_code,

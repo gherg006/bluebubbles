@@ -26,6 +26,12 @@ remain out of scope.
   ordering; permanent failures remain recoverable instead of disappearing.
 - Cache eviction applies only to replaceable data. Clearing local data removes
   keys and managed files without claiming guaranteed physical overwrite.
+- Durable transfer records now include encrypted temporary/destination paths,
+  upload identity, confirmed chunks, expiry and file key rather than progress
+  counters alone.
+- Explicit cache recovery quarantines damaged SQLite data; selective clear keeps
+  drafts/offline work/transfers and clear-all validates containment before key
+  destruction and managed-profile removal.
 
 ## Verification evidence
 
@@ -35,11 +41,11 @@ Focused test targets:
 - `tests/unit/client/test_task_16_search.py`
 - `tests/unit/client/test_task_13_client_messaging.py`
 
-Final Black, Ruff, strict mypy, pytest and branch-aware coverage evidence is
-pending completion of the combined Task 15 and Task 16 implementation. The
-mandatory command is `python scripts/development/run_quality_checks.py`; this
-report must be updated with observed results before the stage is declared
-complete.
+The mandatory `scripts/development/run_quality_checks.py` runner completed
+successfully using the locked Python 3.13 environment: Black and Ruff were
+clean, strict mypy found no issues in 291 source files, and pytest reported 255
+passed, 3 intentional PostgreSQL skips and 89.63% branch-aware coverage (meeting
+the configured integer 90% threshold).
 
 ## Platform and recovery limitations
 
@@ -49,4 +55,3 @@ Standard SQLite does not transparently encrypt structural metadata, so every
 sensitive value is encrypted at the application boundary. Search covers only
 authorised content present in the local cache, and physical secure erasure on
 SSDs is not claimed.
-

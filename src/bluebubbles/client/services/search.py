@@ -7,6 +7,8 @@ import hmac
 import re
 import sqlite3
 import unicodedata
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -23,6 +25,18 @@ from bluebubbles.client.security.local_encryption import (
 from bluebubbles.client.storage.database import LocalDatabaseManager
 
 _TOKEN_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
+
+
+@dataclass(frozen=True, slots=True)
+class SearchIndexRecord:
+    """Carry one authorised decrypted message into an explicit index rebuild."""
+
+    message_id: UUID
+    conversation_id: UUID
+    sender_id: UUID
+    created_at: datetime
+    text: str
+    source_version: int = 1
 
 
 class SearchTokenService:
@@ -130,6 +144,31 @@ class LocalSearchService:
         await self._database.execute(
             "DELETE FROM search_documents WHERE source_id = ?", (str(message_id),)
         )
+
+    async def clear_conversation(self, conversation_id: UUID) -> None:
+        """Invalidate every search document for one inaccessible conversation."""
+        await self._database.execute(
+            "DELETE FROM search_documents WHERE conversation_id = ?",
+            (str(conversation_id),),
+        )
+
+    async def clear(self) -> None:
+        """Remove the replaceable private search index."""
+        await self._database.execute("DELETE FROM search_documents")
+
+    async def rebuild(self, records: Sequence[SearchIndexRecord]) -> int:
+        """Replace the index from explicitly supplied authorised cache content."""
+        await self.clear()
+        for record in records:
+            await self.index_message(
+                record.message_id,
+                record.conversation_id,
+                record.sender_id,
+                record.created_at,
+                record.text,
+                record.source_version,
+            )
+        return len(records)
 
     async def search(self, query: SearchQuery) -> list[SearchResult]:
         """Find digest matches and verify actual plaintext candidates in memory."""

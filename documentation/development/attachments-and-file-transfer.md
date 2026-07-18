@@ -10,12 +10,11 @@ download.
 
 An upload is prepared outside the GUI thread using bounded chunks. Each file has
 a fresh 256-bit master key and each chunk is authenticated independently with
-AES-256-GCM. The chunk context binds the protocol and attachment context; a
-signed manifest binds encrypted metadata, the complete ordered chunk layout and
-the recipient-specific X25519/HKDF key envelopes. The plaintext checksum remains
-inside encrypted client-readable metadata. The server may retain ciphertext and
-ciphertext checksums but never plaintext bodies, plaintext checksums or file
-keys.
+AES-256-GCM. The chunk context binds the protocol and attachment context, while
+encrypted metadata binds the final plaintext checksum and declared layout. The
+plaintext checksum remains inside encrypted client-readable metadata. The
+server may retain ciphertext and ciphertext checksums but never plaintext
+bodies, plaintext checksums or file keys.
 
 Initialisation validates protocol version, filename, declared sizes, supported
 algorithms, active conversation membership, upload permission, configured
@@ -63,11 +62,15 @@ boundary, and cleanup failures are safe to retry.
 ## Client transfer ownership
 
 The client file-transfer service owns preparation, resumable upload/download
-coordination and immutable progress snapshots. Upload and download workers own
-their asynchronous transfer tasks and support cancellation. Prepared upload
-state contains encrypted temporary paths and retry metadata only. Transfer state
-is persisted by the Task 16 local-storage subsystem so interruption or process
-restart does not silently lose work.
+coordination and immutable progress snapshots. Prepared uploads retain only
+bounded chunk metadata and encrypted temporary paths; each ciphertext body is
+loaded and revalidated immediately before transmission. Downloads authenticate
+every ordered chunk, decrypt into a partial file, verify the encrypted metadata
+and final plaintext checksum, resolve filename collisions, and publish with an
+atomic rename. Cancellation and integrity failure remove partial plaintext.
+Transfer recovery state is encrypted by the Task 16 local-storage subsystem so
+interruption or process restart does not silently lose session identity, paths,
+confirmed chunk indexes, expiry, or the client-only file key.
 
 The transfer ViewModel consumes service snapshots and commands; it never opens
 files, performs cryptography or sends HTTP directly. This keeps the later GUI
@@ -78,8 +81,8 @@ stage independent from storage, networking and encryption implementations.
 `tests/unit/server/test_task_15_attachments.py` covers authorisation, recipient
 coverage, session recovery, chunk bounds and idempotency, checksum validation,
 atomic completion, concealed downloads, message linking and cleanup behavior.
-`tests/unit/client/test_task_15_attachments.py` covers validation, preparation,
-signed manifests, resumable workers, progress, cancellation, download
-verification and partial-output cleanup. Existing Task 12 cryptographic tests
-continue to cover bounded-memory chunk encryption and authentication failures.
-
+`tests/unit/client/test_task_15_attachments.py` and
+`test_task_15_transfer_workflows.py` cover validation, bounded preparation,
+resumable upload, cancellation, collision-safe download, final verification and
+partial-output cleanup. Existing Task 12 cryptographic tests continue to cover
+bounded-memory chunk encryption and authentication failures.

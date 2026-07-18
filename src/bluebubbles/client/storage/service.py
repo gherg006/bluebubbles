@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
+import shutil
+import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID
 
 from bluebubbles.client.configuration.settings import ClientStorageSettings
@@ -30,6 +35,7 @@ class LocalStorageService:
         secure_store: SecureStore,
     ) -> None:
         self.profile_id = profile_id
+        self._secure_store = secure_store
         self.paths = ProfilePaths(settings.profile_root, profile_id)
         self.key_provider = ProfileLocalKeyProvider(secure_store, profile_id)
         self.encryption = LocalEncryptionService(self.key_provider)
@@ -77,3 +83,50 @@ class LocalStorageService:
         """Remove expired entries and enforce the configured LRU limit."""
         await self.cache.remove_expired_entries()
         await self.cache.enforce_limits()
+
+    async def recover_corrupt_cache(self) -> Path | None:
+        """Quarantine a damaged cache and create a fresh encrypted database."""
+        await self.database.close()
+        database = self.paths.database
+        quarantined: Path | None = None
+        if database.exists():
+            stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+            quarantined = self.paths.recovery / f"client_cache.corrupt-{stamp}.db"
+            await asyncio.to_thread(database.replace, quarantined)
+            for suffix in ("-wal", "-shm"):
+                sidecar = Path(f"{database}{suffix}")
+                if sidecar.exists():
+                    await asyncio.to_thread(sidecar.unlink)
+        await self.database.open(await self.key_provider.get_master_key())
+        return quarantined
+
+    async def clear_replaceable_cache(self) -> None:
+        """Remove rebuildable message/search/cache data while preserving user work."""
+
+        def operation(connection: sqlite3.Connection) -> None:
+            connection.execute("DELETE FROM search_documents")
+            connection.execute("DELETE FROM cached_messages")
+            connection.execute("DELETE FROM cached_conversation_members")
+            connection.execute("DELETE FROM cached_conversations")
+            connection.execute("DELETE FROM local_users")
+            connection.execute("DELETE FROM cached_public_keys")
+            connection.execute("DELETE FROM synchronisation_state")
+            connection.execute(
+                "DELETE FROM cache_entries WHERE cache_type NOT IN (?, ?)",
+                ("transfer", "temporary"),
+            )
+            connection.commit()
+
+        await self.database.run_transaction(operation)
+
+    async def clear_all_local_data(self) -> None:
+        """Destroy profile keys and managed local data without touching the server."""
+        profile_root = self.paths.profile_root
+        root = self.paths.root.expanduser().resolve()
+        if profile_root == root or root not in profile_root.parents:
+            raise LocalStorageError(user_message="The local profile path is invalid.")
+        await self.database.close()
+        await self.key_provider.destroy()
+        await self._secure_store.delete_profile(self.profile_id)
+        self._profile_lock.release()
+        await asyncio.to_thread(shutil.rmtree, profile_root, True)

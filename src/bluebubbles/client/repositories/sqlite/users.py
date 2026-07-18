@@ -69,4 +69,3 @@ class SQLiteCachedUserRepository:
         await self._database.execute(
             "DELETE FROM local_users WHERE user_id = ?", (str(user_id),)
         )
-

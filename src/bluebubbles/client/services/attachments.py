@@ -8,6 +8,9 @@ import hashlib
 import mimetypes
 import os
 import re
+import secrets
+import shutil
+from contextlib import suppress
 from dataclasses import dataclass, field
 from pathlib import Path
 from time import monotonic
@@ -24,6 +27,7 @@ from bluebubbles.shared.errors.exceptions import FileTransferError, ValidationEr
 from bluebubbles.shared.models.attachments import (
     AttachmentRecipientKeyRequest,
     AttachmentResponse,
+    AuthorisedAttachmentResponse,
     InitialiseUploadRequest,
     InitialiseUploadResponse,
     UploadChunkResponse,
@@ -49,6 +53,12 @@ class AttachmentTransferApi(Protocol):
     ) -> UploadChunkResponse: ...
     async def complete_upload(self, upload_id: UUID) -> AttachmentResponse: ...
     async def cancel_upload(self, upload_id: UUID) -> None: ...
+    async def get_attachment(
+        self, attachment_id: UUID
+    ) -> AuthorisedAttachmentResponse: ...
+    async def download_chunk(
+        self, attachment_id: UUID, chunk_index: int
+    ) -> AuthenticatedAttachmentChunk: ...
 
 
 class FileValidator:
@@ -127,13 +137,47 @@ class PreparedEncryptedAttachment:
     plaintext_size: int
     encrypted_size: int
     chunk_size: int
-    chunks: tuple[AuthenticatedAttachmentChunk, ...]
+    chunks: tuple[PreparedEncryptedChunk, ...]
     plaintext_sha256: str
     encrypted_sha256: bytes
     metadata_nonce: bytes
     metadata_ciphertext: bytes
     metadata_tag: bytes
     master_key: bytes = field(repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedEncryptedChunk:
+    """Reference one encrypted chunk without retaining its body in memory."""
+
+    index: int
+    path: Path
+    nonce: bytes = field(repr=False)
+    authentication_tag: bytes = field(repr=False)
+    plaintext_length: int
+    encrypted_hash: bytes = field(repr=False)
+    encrypted_size: int
+
+    def load(self) -> AuthenticatedAttachmentChunk:
+        """Load and revalidate one bounded chunk immediately before transfer."""
+        ciphertext = self.path.read_bytes()
+        if len(ciphertext) != self.encrypted_size:
+            raise FileTransferError(
+                user_message="The prepared attachment chunk is incomplete."
+            )
+        digest = hashlib.sha256(ciphertext).digest()
+        if not secrets.compare_digest(digest, self.encrypted_hash):
+            raise FileTransferError(
+                user_message="The prepared attachment chunk is damaged."
+            )
+        return AuthenticatedAttachmentChunk(
+            self.index,
+            self.nonce,
+            ciphertext,
+            self.authentication_tag,
+            self.plaintext_length,
+            self.encrypted_hash,
+        )
 
 
 class FileTransferService:
@@ -166,6 +210,7 @@ class FileTransferService:
         cancellation_token: CancellationToken,
     ) -> PreparedEncryptedAttachment:
         size, filename, media_type = self._validator.validate(path, self._maximum_size)
+        initial_stat = path.stat()
         attachment_id = uuid4()
         count = (size + self._chunk_size - 1) // self._chunk_size
         context = AttachmentCryptoContext(
@@ -178,7 +223,7 @@ class FileTransferService:
         await asyncio.to_thread(directory.mkdir, parents=True, exist_ok=False)
         plaintext_hash = hashlib.sha256()
         encrypted_hash = hashlib.sha256()
-        chunks: list[AuthenticatedAttachmentChunk] = []
+        chunks: list[PreparedEncryptedChunk] = []
         try:
             with path.open("rb") as source:
                 for index in range(count):
@@ -196,8 +241,26 @@ class FileTransferService:
                         stream.write(chunk.ciphertext)
                         stream.flush()
                         os.fsync(stream.fileno())
-                    chunks.append(chunk)
+                    chunks.append(
+                        PreparedEncryptedChunk(
+                            chunk.index,
+                            target,
+                            chunk.nonce,
+                            chunk.authentication_tag,
+                            chunk.plaintext_length,
+                            chunk.encrypted_hash,
+                            len(chunk.ciphertext),
+                        )
+                    )
                     plaintext = b""
+            final_stat = path.stat()
+            if (
+                final_stat.st_size != initial_stat.st_size
+                or final_stat.st_mtime_ns != initial_stat.st_mtime_ns
+            ):
+                raise FileTransferError(
+                    user_message="The selected file changed during preparation."
+                )
             metadata = {
                 "format_version": 1,
                 "original_filename": filename,
@@ -211,8 +274,6 @@ class FileTransferService:
                 master_key, context, metadata
             )
         except BaseException:
-            import shutil
-
             await asyncio.to_thread(shutil.rmtree, directory, True)
             raise
         return PreparedEncryptedAttachment(
@@ -224,7 +285,7 @@ class FileTransferService:
             filename,
             media_type,
             size,
-            sum(len(item.ciphertext) for item in chunks),
+            sum(item.encrypted_size for item in chunks),
             self._chunk_size,
             tuple(chunks),
             plaintext_hash.hexdigest(),
@@ -276,9 +337,103 @@ class FileTransferService:
         status = await self._api.get_upload_status(initialised.upload_id)
         limiter = BandwidthLimiter(self._bandwidth_limit)
         missing = set(status.missing_chunks)
-        for chunk in prepared.chunks:
-            if chunk.index not in missing:
-                continue
-            await limiter.consume(len(chunk.ciphertext))
-            await self._api.upload_chunk(initialised.upload_id, chunk)
-        return await self._api.complete_upload(initialised.upload_id)
+        try:
+            for prepared_chunk in prepared.chunks:
+                if prepared_chunk.index not in missing:
+                    continue
+                chunk = await asyncio.to_thread(prepared_chunk.load)
+                await limiter.consume(len(chunk.ciphertext))
+                await self._api.upload_chunk(initialised.upload_id, chunk)
+                del chunk
+            return await self._api.complete_upload(initialised.upload_id)
+        except BaseException:
+            with suppress(Exception):
+                await self._api.cancel_upload(initialised.upload_id)
+            raise
+
+    async def download(
+        self,
+        attachment_id: UUID,
+        destination: Path,
+        master_key: bytes,
+        cancellation_token: CancellationToken,
+    ) -> Path:
+        """Download, authenticate and atomically publish one attachment."""
+        metadata = await self._api.get_attachment(attachment_id)
+        if metadata.chunk_count is None or metadata.chunk_count < 1:
+            raise FileTransferError(user_message="Attachment metadata is incomplete.")
+        encrypted_metadata_value = metadata.encrypted_metadata
+        metadata_nonce_value = metadata.metadata_nonce
+        metadata_tag_value = metadata.metadata_authentication_tag
+        if (
+            encrypted_metadata_value is None
+            or metadata_nonce_value is None
+            or metadata_tag_value is None
+        ):
+            raise FileTransferError(user_message="Attachment metadata is incomplete.")
+        context = AttachmentCryptoContext(
+            metadata.id,
+            metadata.conversation_id,
+            metadata.uploaded_by,
+            metadata.chunk_count,
+        )
+        encrypted_metadata = self._crypto.decrypt_metadata(
+            master_key,
+            context,
+            base64.b64decode(metadata_nonce_value, validate=True),
+            base64.b64decode(encrypted_metadata_value, validate=True),
+            base64.b64decode(metadata_tag_value, validate=True),
+        )
+        expected_hash = encrypted_metadata.get("plaintext_sha256")
+        expected_size = encrypted_metadata.get("plaintext_size")
+        if (
+            not isinstance(expected_hash, str)
+            or expected_size != metadata.original_size
+        ):
+            raise FileTransferError(user_message="Attachment metadata is invalid.")
+        output = self._available_destination(destination)
+        partial = output.with_name(output.name + ".bluebubbles-partial")
+        digest = hashlib.sha256()
+        total = 0
+        try:
+            partial.parent.mkdir(parents=True, exist_ok=True)
+            with partial.open("xb") as stream:
+                for index in range(metadata.chunk_count):
+                    cancellation_token.raise_if_cancelled()
+                    chunk = await self._api.download_chunk(attachment_id, index)
+                    if chunk.index != index:
+                        raise FileTransferError(
+                            user_message="Attachment chunks arrived out of order."
+                        )
+                    plaintext = self._crypto.decrypt_chunk(master_key, context, chunk)
+                    stream.write(plaintext)
+                    digest.update(plaintext)
+                    total += len(plaintext)
+                    plaintext = b""
+                stream.flush()
+                os.fsync(stream.fileno())
+            if total != metadata.original_size or not secrets.compare_digest(
+                digest.hexdigest(), expected_hash
+            ):
+                raise FileTransferError(
+                    user_message="The downloaded attachment checksum did not match."
+                )
+            os.replace(partial, output)
+            return output
+        except BaseException:
+            partial.unlink(missing_ok=True)
+            raise
+
+    @staticmethod
+    def _available_destination(destination: Path) -> Path:
+        """Choose a collision-free filename without overwriting user data."""
+        selected = destination.resolve()
+        if not selected.exists():
+            return selected
+        for index in range(1, 10_000):
+            candidate = selected.with_name(
+                f"{selected.stem} ({index}){selected.suffix}"
+            )
+            if not candidate.exists():
+                return candidate
+        raise FileTransferError(user_message="A safe download filename is unavailable.")

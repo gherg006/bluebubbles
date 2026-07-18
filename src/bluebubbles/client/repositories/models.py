@@ -37,4 +37,3 @@ class CachedConversationRecord:
     is_muted: bool = False
     is_pinned: bool = False
     is_archived: bool = False
-

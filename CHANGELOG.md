@@ -1,5 +1,17 @@
 # Changelog
 
+## Tasks 15 and 16 - Attachments and local client storage
+
+- Completed bounded, resumable client-encrypted attachment upload and verified
+  recipient download, including collision-safe atomic publication, cancellation,
+  chunk-wire compatibility and complete server authorisation/storage coverage.
+- Completed per-profile encrypted SQLite lifecycle, detailed transfer recovery,
+  durable offline retry, private HMAC search rebuild/invalidation, cache eviction,
+  corrupt-cache quarantine and contained clear-all behavior.
+- Added focused Windows protected-store, attachment integration, storage recovery
+  and search evidence; the complete quality runner now passes at the configured
+  branch-aware coverage threshold.
+
 ## Task 07 - Unit of Work
 
 - Added fresh async session construction, a complete immutable repository bundle,
