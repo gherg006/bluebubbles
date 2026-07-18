@@ -10,6 +10,16 @@ from pathlib import Path
 from uuid import UUID
 
 from bluebubbles.client.configuration.settings import ClientStorageSettings
+from bluebubbles.client.repositories.sqlite.offline_actions import (
+    SQLiteOfflineActionRepository,
+)
+from bluebubbles.client.repositories.sqlite.synchronisation import (
+    SQLiteSynchronisationStateRepository,
+)
+from bluebubbles.client.repositories.sqlite.synchronisation_metadata import (
+    SQLiteConflictRepository,
+    SQLiteTombstoneRepository,
+)
 from bluebubbles.client.security.local_encryption import LocalEncryptionService
 from bluebubbles.client.security.local_keys import ProfileLocalKeyProvider
 from bluebubbles.client.security.secure_store import SecureStore
@@ -48,6 +58,12 @@ class LocalStorageService:
             self.paths,
             settings.default_cache_limit_bytes,
         )
+        self.offline_actions = SQLiteOfflineActionRepository(
+            self.database, self.encryption, profile_id
+        )
+        self.synchronisation_state = SQLiteSynchronisationStateRepository(self.database)
+        self.conflicts = SQLiteConflictRepository(self.database)
+        self.tombstones = SQLiteTombstoneRepository(self.database)
         self._profile_lock = ProfileLock(self.paths.lock_file)
 
     async def initialise(self) -> None:

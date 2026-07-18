@@ -174,7 +174,52 @@ def _migration_001(connection: sqlite3.Connection) -> None:
     )
 
 
-_MIGRATIONS: tuple[Migration, ...] = (_migration_001,)
+def _migration_002(connection: sqlite3.Connection) -> None:
+    """Add Task 17 queue orchestration, conflict and tombstone persistence."""
+    connection.executescript(
+        """
+        ALTER TABLE offline_actions ADD COLUMN user_id TEXT;
+        ALTER TABLE offline_actions
+            ADD COLUMN scope_type TEXT NOT NULL DEFAULT 'global';
+        ALTER TABLE offline_actions ADD COLUMN scope_id TEXT;
+        ALTER TABLE offline_actions
+            ADD COLUMN sequence_number INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE offline_actions ADD COLUMN updated_at TEXT;
+        ALTER TABLE offline_actions ADD COLUMN dependency_action_id TEXT;
+        ALTER TABLE offline_actions ADD COLUMN server_reference TEXT;
+        CREATE UNIQUE INDEX ux_offline_actions_sequence
+            ON offline_actions(sequence_number) WHERE sequence_number > 0;
+        CREATE INDEX ix_offline_actions_dependency
+            ON offline_actions(dependency_action_id);
+
+        CREATE TABLE synchronisation_conflicts (
+            conflict_id TEXT PRIMARY KEY,
+            category TEXT NOT NULL,
+            scope TEXT NOT NULL,
+            scope_id TEXT,
+            action_id TEXT,
+            detected_at TEXT NOT NULL,
+            failure_code TEXT NOT NULL,
+            attempted_content_preserved INTEGER NOT NULL DEFAULT 0,
+            resolved_at TEXT,
+            resolution TEXT
+        );
+        CREATE INDEX ix_synchronisation_conflicts_unresolved
+            ON synchronisation_conflicts(resolved_at, detected_at);
+
+        CREATE TABLE local_tombstones (
+            scope TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            server_version INTEGER,
+            created_at TEXT NOT NULL,
+            reason_code TEXT NOT NULL,
+            PRIMARY KEY (scope, resource_id)
+        );
+        """
+    )
+
+
+_MIGRATIONS: tuple[Migration, ...] = (_migration_001, _migration_002)
 
 
 class ClientMigrationManager:

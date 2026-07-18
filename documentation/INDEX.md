@@ -24,6 +24,8 @@ instead of the complete repository or repeated master specification.
 | WebSocket and outbox delivery | `development/websocket-and-outbox-delivery.md` | `server/websocket`, `server/workers/outbox.py`, `client/networking` |
 | Attachments and file transfer | `development/attachments-and-file-transfer.md` | `server/services/attachments.py`, `routes/attachments.py`, `server/storage`, `client/services/attachments.py` |
 | Local client storage and search | `development/local-client-storage.md` | `client/storage`, `client/services/local_storage.py`, `client/services/search.py` |
+| Offline queue and synchronisation | `development/offline-queue-and-synchronisation.md` | `client/services/offline_queue.py`, `client/services/synchronisation.py`, `client/services/connectivity.py` |
+| PySide6 desktop interface | `development/pyside6-interface.md` | `client/ui`, `client/application.py` |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -82,6 +84,8 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | WebSocket authentication, recipient filtering, reconnect and outbox poison isolation | `tests/unit/server/test_task_14_websocket_outbox.py`, `tests/unit/client/test_task_14_networking.py` |
 | Encrypted attachment authorisation, resume, storage and verified client transfer | `tests/unit/server/test_task_15_attachments.py`, `tests/unit/client/test_task_15_attachments.py` |
 | Encrypted local persistence, migration, recovery, cache policy and private search | `tests/unit/client/test_task_16_local_storage.py`, `tests/unit/client/test_task_16_search.py` |
+| Ordered offline replay, dependency recovery, sync fallback, conflicts and tombstones | `tests/unit/client/test_task_17_offline_queue.py`, `tests/unit/client/test_task_17_synchronisation.py` |
+| ViewModel isolation, optimistic message state, navigation, accessibility, themes and widgets | `tests/unit/client/test_task_18_viewmodels.py`, `tests/unit/client/test_task_18_widgets.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths

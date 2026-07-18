@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
@@ -43,6 +44,8 @@ class WebSocketClient:
         logger: logging.Logger,
         *,
         protocol_version: int = 1,
+        on_authenticated: Callable[[UUID | None], Awaitable[None]] | None = None,
+        on_event_processed: Callable[[UUID], Awaitable[None]] | None = None,
     ) -> None:
         self._settings = settings
         self._network_settings = network_settings
@@ -50,6 +53,8 @@ class WebSocketClient:
         self._event_dispatcher = event_dispatcher
         self._logger = logger
         self._protocol_version = protocol_version
+        self._on_authenticated = on_authenticated
+        self._on_event_processed = on_event_processed
         self._connection: ClientConnection | None = None
         self._receive_task: asyncio.Task[None] | None = None
         self._heartbeat_task: asyncio.Task[None] | None = None
@@ -112,6 +117,8 @@ class WebSocketClient:
             self._heartbeat_task = asyncio.create_task(
                 self._heartbeat_loop(), name="bluebubbles-websocket-heartbeat"
             )
+            if self._on_authenticated is not None:
+                await self._on_authenticated(self._last_event_id)
 
     async def disconnect(self) -> None:
         """Close manually and suppress all automatic reconnection."""
@@ -162,8 +169,10 @@ class WebSocketClient:
                 if isinstance(value, dict) and "accepted" in value:
                     continue
                 envelope = WebSocketEventEnvelope.model_validate(value)
-                self._last_event_id = envelope.event_id
                 await self._event_dispatcher.dispatch(envelope)
+                self._last_event_id = envelope.event_id
+                if self._on_event_processed is not None:
+                    await self._on_event_processed(envelope.event_id)
         except (ConnectionClosed, ValueError, json.JSONDecodeError) as error:
             self._logger.warning(
                 "WebSocket receive ended",

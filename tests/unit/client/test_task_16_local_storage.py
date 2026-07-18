@@ -76,7 +76,7 @@ async def test_database_migrates_verifies_integrity_and_rejects_wrong_key(
     version = await database.fetch_one(
         "SELECT version FROM local_schema_version WHERE singleton = 1"
     )
-    assert version is not None and version[0] == 1
+    assert version is not None and version[0] == 2
     await database.close()
 
     wrong_key_database = build_database(database_path)

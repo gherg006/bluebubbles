@@ -2,9 +2,10 @@
 
 Use this file as the shortest route into the repository. Read
 `documentation/INDEX.md` before scanning the tree or opening the embedded complete
-specification. The current completed implementation stage is Task 14, WebSocket
-and outbox delivery; client database storage, attachment transfer, search,
-administration, and GUI stages remain out of scope until requested.
+specification. The current completed implementation stage is Task 18, the
+PySide6 interface. Server administration, expanded monitoring, deployment,
+full-system testing, final documentation, and release-candidate stages remain
+out of scope until requested.
 
 ## Fast context route
 
@@ -27,7 +28,7 @@ administration, and GUI stages remain out of scope until requested.
 | `src/bluebubbles/server/monitoring` | Timeout-bounded dependency and storage health aggregation |
 | `src/bluebubbles/server/authentication` | Provider-neutral identities, LDAP/local/mock adapters, Argon2id, signed and opaque token primitives |
 | `src/bluebubbles/server/services` | Authentication, identity, conversations, encrypted messaging, permissions, audit metadata, and transaction coordination |
-| `src/bluebubbles/server/routes` | Thin authenticated FastAPI transport boundaries through Task 14 |
+| `src/bluebubbles/server/routes` | Thin authenticated FastAPI transport boundaries through Task 15 |
 | `src/bluebubbles/server/redis.py` | Redis connectivity, fallback state, and namespaced keys |
 | `src/bluebubbles/server/websocket` | Authenticated connections, validated dispatch, and recipient-filtered publication |
 | `src/bluebubbles/server/workers` | Lifecycle-owned durable outbox publication |
@@ -38,6 +39,9 @@ administration, and GUI stages remain out of scope until requested.
 | `src/bluebubbles/client/security` | OS secret storage, private keys, and message/attachment/local cryptography |
 | `src/bluebubbles/client/services` | Login/session ownership and encrypted messaging/offline retry coordination |
 | `src/bluebubbles/client/networking` | Authenticated WebSocket client, reconnection, and event deduplication |
+| `src/bluebubbles/client/ui` | PySide6 views, ViewModels, themes, background task runner, tray and notifications |
+| `src/bluebubbles/client/services/offline_queue.py` | Ordered encrypted queue replay, dependencies, retries and recovery |
+| `src/bluebubbles/client/services/synchronisation.py` | Security-first scope reconciliation, checkpoints and conflict resolution |
 | `config` | Layered example/default YAML; secrets stay outside Git |
 | `migrations` | Alembic environment and immutable numbered revisions |
 | `tests/unit` | Deterministic component and contract tests |

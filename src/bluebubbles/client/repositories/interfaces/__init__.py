@@ -6,13 +6,18 @@ from typing import Protocol
 from uuid import UUID
 
 from bluebubbles.client.domain.messages import MessageDraft
-from bluebubbles.client.domain.offline_actions import OfflineAction
+from bluebubbles.client.domain.offline_actions import OfflineAction, OfflineActionState
+from bluebubbles.client.domain.synchronisation import (
+    LocalTombstone,
+    SynchronisationConflict,
+    SynchronisationScope,
+)
 from bluebubbles.client.domain.transfers import FileTransfer
 from bluebubbles.client.repositories.models import (
     CachedConversationRecord,
     CachedUserRecord,
 )
-from bluebubbles.client.storage.models import CachedPublicKey
+from bluebubbles.client.storage.models import CachedPublicKey, SynchronisationState
 
 
 class CachedUserRepository(Protocol):
@@ -63,7 +68,36 @@ class OfflineActionRepository(Protocol):
     async def save(self, action: OfflineAction) -> None: ...
     async def get(self, action_id: UUID) -> OfflineAction | None: ...
     async def list_pending(self) -> list[OfflineAction]: ...
+    async def list_by_states(
+        self, states: frozenset[OfflineActionState]
+    ) -> list[OfflineAction]: ...
+    async def next_sequence_number(self) -> int: ...
     async def delete(self, action_id: UUID) -> None: ...
+
+
+class SynchronisationStateRepository(Protocol):
+    """Persist opaque per-scope checkpoints after committed pages."""
+
+    async def save(self, state: SynchronisationState) -> bool: ...
+    async def get(
+        self, scope: str, scope_identifier: str | None = None
+    ) -> SynchronisationState | None: ...
+
+
+class ConflictRepository(Protocol):
+    """Persist safe synchronisation conflict metadata."""
+
+    async def save(self, conflict: SynchronisationConflict) -> None: ...
+    async def list_unresolved(self) -> list[SynchronisationConflict]: ...
+
+
+class TombstoneRepository(Protocol):
+    """Persist authoritative local resource tombstones."""
+
+    async def save(self, tombstone: LocalTombstone) -> None: ...
+    async def get(
+        self, scope: SynchronisationScope, resource_id: UUID
+    ) -> LocalTombstone | None: ...
 
 
 class TransferStateRepository(Protocol):
@@ -78,9 +112,12 @@ class TransferStateRepository(Protocol):
 __all__ = [
     "CachedConversationRepository",
     "CachedUserRepository",
+    "ConflictRepository",
     "DraftRepository",
     "LocalSettingsRepository",
     "OfflineActionRepository",
     "PublicKeyCacheRepository",
+    "SynchronisationStateRepository",
+    "TombstoneRepository",
     "TransferStateRepository",
 ]

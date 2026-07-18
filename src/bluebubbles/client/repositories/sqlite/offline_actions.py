@@ -1,8 +1,9 @@
-"""Encrypted durable repository for ciphertext-only offline actions."""
+"""Encrypted durable repository for ordered offline actions."""
 
 from __future__ import annotations
 
 import base64
+from dataclasses import replace
 from datetime import datetime
 from uuid import UUID
 
@@ -20,7 +21,7 @@ from bluebubbles.client.storage.database import LocalDatabaseManager
 
 
 class SQLiteOfflineActionRepository:
-    """Persist retry state while hiding prepared envelopes and metadata at rest."""
+    """Persist protected queue payloads and non-sensitive scheduling metadata."""
 
     def __init__(
         self,
@@ -33,7 +34,7 @@ class SQLiteOfflineActionRepository:
         self._profile_id = profile_id
 
     async def save(self, action: OfflineAction) -> None:
-        """Encrypt and upsert one stable idempotent action."""
+        """Encrypt and upsert one action without changing its idempotency identity."""
         value = await self._encryption.encrypt(
             LocalEncryptionPurpose.OFFLINE_QUEUE,
             encode_json(
@@ -44,19 +45,22 @@ class SQLiteOfflineActionRepository:
                     "last_error_code": action.last_error_code,
                 }
             ),
-            self._context(action.id, action.action_type),
+            self._context(action),
         )
         await self._database.execute(
             "INSERT INTO offline_actions(action_id, action_type, ciphertext, nonce, "
             "format_version, created_at, attempt_count, next_attempt_at, "
-            "last_error_code, status, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "
-            "?, ?, ?) ON CONFLICT(action_id) DO UPDATE SET "
-            "ciphertext=excluded.ciphertext, "
+            "last_error_code, status, idempotency_key, user_id, scope_type, scope_id, "
+            "sequence_number, updated_at, dependency_action_id, server_reference) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(action_id) DO UPDATE SET ciphertext=excluded.ciphertext, "
             "nonce=excluded.nonce, format_version=excluded.format_version, "
             "attempt_count=excluded.attempt_count, "
             "next_attempt_at=excluded.next_attempt_at, "
-            "last_error_code=excluded.last_error_code, "
-            "status=excluded.status",
+            "last_error_code=excluded.last_error_code, status=excluded.status, "
+            "updated_at=excluded.updated_at, "
+            "dependency_action_id=excluded.dependency_action_id, "
+            "server_reference=excluded.server_reference",
             (
                 str(action.id),
                 action.action_type,
@@ -69,31 +73,37 @@ class SQLiteOfflineActionRepository:
                 action.last_error_code,
                 action.state.value,
                 str(action.idempotency_key),
+                str(action.user_id) if action.user_id else None,
+                action.scope_type,
+                str(action.scope_id) if action.scope_id else None,
+                action.sequence_number,
+                action.updated_at.isoformat() if action.updated_at else None,
+                (
+                    str(action.dependency_action_id)
+                    if action.dependency_action_id
+                    else None
+                ),
+                str(action.server_reference) if action.server_reference else None,
             ),
         )
 
     async def get(self, action_id: UUID) -> OfflineAction | None:
-        """Authenticate one queued action by identifier."""
+        """Authenticate and return one queued action by identifier."""
         row = await self._database.fetch_one(
             "SELECT action_type, ciphertext, nonce, format_version, created_at, "
-            "attempt_count, next_attempt_at, last_error_code, status, idempotency_key "
-            "FROM offline_actions WHERE action_id = ?",
+            "attempt_count, next_attempt_at, last_error_code, status, idempotency_key, "
+            "user_id, scope_type, scope_id, sequence_number, updated_at, "
+            "dependency_action_id, server_reference FROM offline_actions "
+            "WHERE action_id = ?",
             (str(action_id),),
         )
         if row is None:
             return None
-        action_type = str(row[0])
-        plaintext = await self._encryption.decrypt(
-            LocalEncryptionPurpose.OFFLINE_QUEUE,
-            EncryptedLocalValue(int(row[3]), bytes(row[2]), bytes(row[1])),
-            self._context(action_id, action_type),
-        )
-        data = decode_json(plaintext)
-        return OfflineAction(
+        action = OfflineAction(
             id=action_id,
-            action_type=action_type,
-            idempotency_key=UUID(str(row[9])),
-            encrypted_payload=base64.b64decode(str(data["payload"]), validate=True),
+            action_type=str(row[0]),
+            idempotency_key=self._parse_idempotency_key(str(row[9])),
+            encrypted_payload=b"protected",
             created_at=datetime.fromisoformat(str(row[4])),
             next_attempt_at=(
                 datetime.fromisoformat(str(row[6])) if row[6] is not None else None
@@ -101,27 +111,83 @@ class SQLiteOfflineActionRepository:
             state=OfflineActionState(str(row[8])),
             attempts=int(row[5]),
             last_error_code=str(row[7]) if row[7] is not None else None,
+            user_id=UUID(str(row[10])) if row[10] else None,
+            scope_type=str(row[11]),
+            scope_id=UUID(str(row[12])) if row[12] else None,
+            sequence_number=int(row[13]),
+            updated_at=datetime.fromisoformat(str(row[14])) if row[14] else None,
+            dependency_action_id=UUID(str(row[15])) if row[15] else None,
+            server_reference=UUID(str(row[16])) if row[16] else None,
+        )
+        plaintext = await self._encryption.decrypt(
+            LocalEncryptionPurpose.OFFLINE_QUEUE,
+            EncryptedLocalValue(int(row[3]), bytes(row[2]), bytes(row[1])),
+            self._context(action),
+        )
+        data = decode_json(plaintext)
+        return replace(
+            action,
+            encrypted_payload=base64.b64decode(str(data["payload"]), validate=True),
         )
 
     async def list_pending(self) -> list[OfflineAction]:
-        """Return recoverable actions in stable creation order."""
+        """Return every non-terminal recoverable action in deterministic order."""
+        return await self.list_by_states(
+            frozenset(
+                {
+                    OfflineActionState.PENDING,
+                    OfflineActionState.READY,
+                    OfflineActionState.PROCESSING,
+                    OfflineActionState.RETRY_WAIT,
+                    OfflineActionState.BLOCKED,
+                }
+            )
+        )
+
+    async def list_by_states(
+        self, states: frozenset[OfflineActionState]
+    ) -> list[OfflineAction]:
+        """Return matching actions by monotonic sequence and creation fallback."""
+        if not states:
+            return []
         rows = await self._database.fetch_all(
-            "SELECT action_id FROM offline_actions WHERE status IN (?, ?) "
-            "ORDER BY created_at ASC, action_id ASC",
-            (OfflineActionState.PENDING.value, OfflineActionState.FAILED.value),
+            "SELECT action_id, status FROM offline_actions "
+            "ORDER BY CASE WHEN sequence_number = 0 THEN 1 ELSE 0 END, "
+            "sequence_number ASC, created_at ASC, action_id ASC",
         )
         actions: list[OfflineAction] = []
         for row in rows:
+            if OfflineActionState(str(row[1])) not in states:
+                continue
             action = await self.get(UUID(str(row[0])))
             if action is not None:
                 actions.append(action)
         return actions
 
+    async def next_sequence_number(self) -> int:
+        """Allocate the next profile-local monotonic queue sequence."""
+        row = await self._database.fetch_one(
+            "SELECT COALESCE(MAX(sequence_number), 0) + 1 FROM offline_actions"
+        )
+        return 1 if row is None else int(row[0])
+
     async def delete(self, action_id: UUID) -> None:
-        """Delete a resolved or explicitly cancelled action."""
+        """Delete only an explicitly removed queue record."""
         await self._database.execute(
             "DELETE FROM offline_actions WHERE action_id = ?", (str(action_id),)
         )
 
-    def _context(self, action_id: UUID, action_type: str) -> bytes:
-        return f"{self._profile_id}:{action_id}:{action_type}:1".encode()
+    def _context(self, action: OfflineAction) -> bytes:
+        if action.sequence_number == 0:
+            return f"{self._profile_id}:{action.id}:{action.action_type}:1".encode()
+        user = action.user_id or self._profile_id
+        return (
+            f"{user}:{action.id}:{action.action_type}:{action.sequence_number}:1"
+        ).encode("ascii")
+
+    @staticmethod
+    def _parse_idempotency_key(value: str) -> UUID | str:
+        try:
+            return UUID(value)
+        except ValueError:
+            return value

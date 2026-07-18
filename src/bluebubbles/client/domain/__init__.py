@@ -11,8 +11,28 @@ from bluebubbles.client.domain.messages import (
     MessageDisplayState,
     MessageDraft,
 )
-from bluebubbles.client.domain.offline_actions import OfflineAction, OfflineActionState
+from bluebubbles.client.domain.offline_actions import (
+    OfflineAction,
+    OfflineActionExecutionResult,
+    OfflineActionOutcome,
+    OfflineActionState,
+    OfflineActionSummary,
+    OfflineActionType,
+    PendingOfflineAction,
+    QueueProcessingResult,
+)
 from bluebubbles.client.domain.search import SearchQuery, SearchResult
+from bluebubbles.client.domain.synchronisation import (
+    CancellationToken,
+    ConflictCategory,
+    ConflictResolution,
+    ConnectivityState,
+    LocalTombstone,
+    ScopeSynchronisationResult,
+    SynchronisationConflict,
+    SynchronisationResult,
+    SynchronisationScope,
+)
 from bluebubbles.client.domain.transfers import (
     EncryptedChunk,
     FileTransfer,
@@ -36,7 +56,22 @@ __all__ = [
     "MessageDisplayState",
     "MessageDraft",
     "OfflineAction",
+    "OfflineActionExecutionResult",
+    "OfflineActionOutcome",
     "OfflineActionState",
+    "OfflineActionSummary",
+    "OfflineActionType",
+    "PendingOfflineAction",
+    "QueueProcessingResult",
+    "CancellationToken",
+    "ConflictCategory",
+    "ConflictResolution",
+    "ConnectivityState",
+    "LocalTombstone",
+    "ScopeSynchronisationResult",
+    "SynchronisationConflict",
+    "SynchronisationResult",
+    "SynchronisationScope",
     "PreparedUpload",
     "SearchQuery",
     "SearchResult",
