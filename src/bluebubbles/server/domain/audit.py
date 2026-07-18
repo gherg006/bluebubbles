@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
@@ -34,10 +34,13 @@ class AuditEvent:
     details: Mapping[str, object]
     previous_hash: str | None
     event_hash: str
+    sequence_number: int = field(default=0, compare=False)
 
     def __post_init__(self) -> None:
         if not self.event_type.strip() or not self.event_hash:
             raise ValueError("Audit type and hash are required")
+        if self.sequence_number < 0:
+            raise ValueError("Audit sequence cannot be negative")
         if self.occurred_at.tzinfo is None:
             raise ValueError("Audit timestamp must be timezone-aware")
         object.__setattr__(self, "details", MappingProxyType(dict(self.details)))
@@ -76,9 +79,10 @@ def build_canonical_audit_data(
     severity: AuditSeverity,
     details: Mapping[str, object],
     previous_hash: str | None,
+    sequence_number: int | None = None,
 ) -> bytes:
     """Serialise audit fields deterministically for hash generation."""
-    payload = {
+    payload: dict[str, object] = {
         "actor_id": str(actor_id) if actor_id else None,
         "details": dict(details),
         "event_id": str(event_id),
@@ -88,6 +92,8 @@ def build_canonical_audit_data(
         "severity": severity.value,
         "source_address": source_address,
     }
+    if sequence_number is not None:
+        payload["sequence_number"] = sequence_number
     return json.dumps(
         payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode()
@@ -111,5 +117,6 @@ def verify_audit_link(event: AuditEvent, expected_previous_hash: str | None) -> 
         severity=event.severity,
         details=event.details,
         previous_hash=event.previous_hash,
+        sequence_number=event.sequence_number or None,
     )
     return calculate_audit_hash(canonical) == event.event_hash

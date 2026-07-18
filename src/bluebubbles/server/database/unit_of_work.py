@@ -22,6 +22,7 @@ from bluebubbles.server.repositories.interfaces import (
     MessageRepository,
     OutboxRepository,
     PublicKeyRepository,
+    SecurityAlertRepository,
     SessionRepository,
     UserRepository,
 )
@@ -37,6 +38,7 @@ from bluebubbles.server.repositories.sqlalchemy import (
     SqlAlchemyMessageRepository,
     SqlAlchemyOutboxRepository,
     SqlAlchemyPublicKeyRepository,
+    SqlAlchemySecurityAlertRepository,
     SqlAlchemySessionRepository,
     SqlAlchemyUserRepository,
 )
@@ -64,6 +66,7 @@ class ServerRepositories:
     administration: AdministrationRepository
     configuration: ConfigurationRepository
     outbox: OutboxRepository
+    security_alerts: SecurityAlertRepository | None = None
 
 
 class RepositoryFactory(Protocol):
@@ -100,6 +103,7 @@ class SqlAlchemyRepositoryFactory:
             administration=SqlAlchemyAdministrationRepository(session),
             configuration=SqlAlchemyConfigurationRepository(session),
             outbox=SqlAlchemyOutboxRepository(session),
+            security_alerts=SqlAlchemySecurityAlertRepository(session),
         )
 
 
@@ -150,6 +154,7 @@ class UnitOfWork:
         self.administration = repositories.administration
         self.configuration = repositories.configuration
         self.outbox = repositories.outbox
+        self.security_alerts = repositories.security_alerts
         self._committed = False
         self._rolled_back = False
         self._closed = False

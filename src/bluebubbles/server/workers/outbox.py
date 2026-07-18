@@ -42,6 +42,8 @@ class OutboxPublisherWorker:
     """Claim bounded batches and publish each poison-isolated event."""
 
     name = "outbox_publisher"
+    manually_runnable = True
+    pausable = False
 
     def __init__(
         self,
@@ -79,6 +81,13 @@ class OutboxPublisherWorker:
 
     async def run_now(self) -> WorkerRunResult:
         return await self.run_once()
+
+    def pause(self) -> None:
+        """Reject pausing the critical durable-delivery worker."""
+        raise ValueError("Critical worker cannot be paused")
+
+    def resume(self) -> None:
+        """Retain the always-enabled critical worker state."""
 
     def status(self) -> WorkerStatus:
         return WorkerStatus(

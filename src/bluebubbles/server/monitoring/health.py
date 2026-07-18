@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import Protocol
 
 from bluebubbles.shared.models.health import (
+    CapabilityState,
     ComponentHealth,
     DetailedHealthResponse,
     HealthState,
@@ -60,6 +61,7 @@ class HealthAggregator:
             application_version=self._application_version,
             protocol_versions=self._protocol_versions,
             components=components,
+            capabilities=self._capability_states(components),
         )
 
     async def _collect(self) -> tuple[ComponentHealth, ...]:
@@ -96,3 +98,26 @@ class HealthAggregator:
         if HealthState.DEGRADED in states:
             return HealthState.DEGRADED
         return HealthState.HEALTHY
+
+    @staticmethod
+    def _capability_states(
+        components: Sequence[ComponentHealth],
+    ) -> dict[str, CapabilityState]:
+        """Derive coarse feature availability from dependency health."""
+        states = {component.name: component.state for component in components}
+
+        def capability(*dependencies: str) -> CapabilityState:
+            required = [states[name] for name in dependencies if name in states]
+            if any(state is HealthState.UNHEALTHY for state in required):
+                return CapabilityState.UNAVAILABLE
+            if any(state is HealthState.DEGRADED for state in required):
+                return CapabilityState.DEGRADED
+            return CapabilityState.AVAILABLE
+
+        return {
+            "authentication": capability("database", "directory"),
+            "messaging": capability("database", "outbox", "websocket"),
+            "presence": capability("redis", "websocket"),
+            "attachments": capability("database", "storage"),
+            "administration": capability("database"),
+        }

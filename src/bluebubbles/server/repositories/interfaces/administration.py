@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
+from bluebubbles.shared.models.administration import DataExportJobResponse
+
 
 class AdministrationRepository(Protocol):
     """Define bounded administrative job persistence operations."""
@@ -28,4 +30,27 @@ class AdministrationRepository(Protocol):
         processed_count: int,
         failure_count: int,
         error_code: str | None = None,
+    ) -> bool: ...
+
+    async def add_export_job(
+        self,
+        job: DataExportJobResponse,
+        *,
+        requested_by: UUID,
+        export_type: str,
+        filters: Mapping[str, object],
+        expires_at: datetime,
+    ) -> None: ...
+
+    async def get_export_job(
+        self, job_id: UUID
+    ) -> tuple[DataExportJobResponse, UUID, datetime, str | None] | None: ...
+
+    async def complete_export_job(
+        self,
+        job_id: UUID,
+        *,
+        completed_at: datetime,
+        storage_reference: str | None,
+        failure_code: str | None,
     ) -> bool: ...

@@ -2,10 +2,10 @@
 
 Use this file as the shortest route into the repository. Read
 `documentation/INDEX.md` before scanning the tree or opening the embedded complete
-specification. The current completed implementation stage is Task 18, the
-PySide6 interface. Server administration, expanded monitoring, deployment,
-full-system testing, final documentation, and release-candidate stages remain
-out of scope until requested.
+specification. The current completed implementation stage is Task 20,
+administration, audit, monitoring and workers. Deployment, full-system testing,
+final documentation, and release-candidate stages remain out of scope until
+requested.
 
 ## Fast context route
 

@@ -1,5 +1,7 @@
 """Server dependency construction and startup validation boundary."""
 
+from datetime import UTC, datetime, timedelta
+
 from bluebubbles.server.authentication.directory_sync import (
     DirectorySynchronisationService,
 )
@@ -20,21 +22,50 @@ from bluebubbles.server.database.unit_of_work import (
     SqlAlchemyRepositoryFactory,
     UnitOfWorkFactory,
 )
+from bluebubbles.server.monitoring.checks import (
+    BackupStatusHealthCheck,
+    OutboxHealthCheck,
+    TLSCertificateHealthCheck,
+    WebSocketHealthCheck,
+    WorkerHealthCheck,
+)
 from bluebubbles.server.monitoring.health import HealthAggregator
+from bluebubbles.server.monitoring.metrics import MetricsService
 from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
+from bluebubbles.server.services.administration import (
+    AdminService,
+    ConnectionAdministrationService,
+    RoleAdministrationPolicy,
+    SessionAdministrationService,
+    UserAdministrationService,
+)
+from bluebubbles.server.services.alerts import SecurityAlertService
+from bluebubbles.server.services.announcements import AnnouncementService
 from bluebubbles.server.services.attachments import AttachmentService
-from bluebubbles.server.services.audit import AuthenticationAuditWriter
+from bluebubbles.server.services.audit import (
+    AuditIntegrityService,
+    AuditService,
+    AuthenticationAuditWriter,
+)
 from bluebubbles.server.services.authentication import AuthenticationService
+from bluebubbles.server.services.configuration import ConfigurationService
 from bluebubbles.server.services.contacts import ContactService
 from bluebubbles.server.services.conversations import ConversationService
+from bluebubbles.server.services.diagnostics import ServerDiagnosticService
 from bluebubbles.server.services.events import EventFactory
+from bluebubbles.server.services.exports import AuditExportService
 from bluebubbles.server.services.groups import GroupService
 from bluebubbles.server.services.keys import PublicKeyService
 from bluebubbles.server.services.login_attempts import LoginAttemptService
+from bluebubbles.server.services.maintenance import MaintenanceService
 from bluebubbles.server.services.messaging import (
     MessageEnvelopeValidator,
     MessagingService,
+)
+from bluebubbles.server.services.monitoring import (
+    AdminDashboardService,
+    MonitoringService,
 )
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
@@ -51,6 +82,8 @@ from bluebubbles.server.websocket.dispatcher import (
 from bluebubbles.server.websocket.handlers import WebSocketHandlers
 from bluebubbles.server.websocket.manager import WebSocketConnectionManager
 from bluebubbles.server.websocket.publisher import EventPublisher
+from bluebubbles.server.workers.base import BackgroundWorker
+from bluebubbles.server.workers.manager import WorkerManager
 from bluebubbles.server.workers.outbox import OutboxPublisherWorker
 from bluebubbles.shared.logging import configure_logging
 
@@ -157,8 +190,64 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
     outbox_worker = OutboxPublisherWorker(
         unit_of_work_factory, event_publisher, settings.workers, logger
     )
+    audit_integrity = AuditIntegrityService(unit_of_work_factory, permission_service)
+
+    async def clean_expired_sessions() -> int:
+        async with unit_of_work_factory() as unit_of_work:
+            removed = await unit_of_work.sessions.delete_expired(
+                datetime.now(UTC), limit=500
+            )
+            await unit_of_work.commit()
+        return removed
+
+    async def verify_recent_audit_chain() -> int:
+        result = await audit_integrity.verify(full=False)
+        if not result.valid:
+            raise RuntimeError("audit_integrity_failed")
+        return result.checked_events
+
+    session_cleanup_worker = BackgroundWorker(
+        "session_cleanup",
+        settings.workers.session_cleanup_interval_seconds,
+        clean_expired_sessions,
+    )
+    audit_verification_worker = BackgroundWorker(
+        "audit_verification",
+        settings.workers.audit_recent_check_interval_seconds,
+        verify_recent_audit_chain,
+        pausable=False,
+    )
+    worker_manager = WorkerManager(
+        (outbox_worker, session_cleanup_worker, audit_verification_worker),
+        unit_of_work_factory,
+        permission_service,
+        audit_writer,
+    )
+    tls_health = TLSCertificateHealthCheck(
+        settings.tls.certificate_path, enabled=settings.tls.enabled
+    )
+    outbox_health = OutboxHealthCheck(unit_of_work_factory)
+    worker_health = WorkerHealthCheck(
+        worker_manager,
+        repeated_failure_threshold=settings.monitoring.repeated_failure_alert_threshold,
+    )
+    websocket_health = WebSocketHealthCheck(websocket_manager)
+    backup_health = BackupStatusHealthCheck(
+        settings.monitoring.backup_status_path,
+        maximum_age=timedelta(hours=settings.monitoring.backup_maximum_age_hours),
+    )
     health = HealthAggregator(
-        (database_manager, redis_manager, storage_health, authentication_provider),
+        (
+            database_manager,
+            redis_manager,
+            storage_health,
+            authentication_provider,
+            tls_health,
+            outbox_health,
+            worker_health,
+            websocket_health,
+            backup_health,
+        ),
         timeout_seconds=float(
             min(
                 settings.database.connection_timeout_seconds,
@@ -171,6 +260,60 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
             "database": settings.monitoring.database_latency_warning_ms,
             "redis": settings.monitoring.redis_latency_warning_ms,
         },
+    )
+    role_policy = RoleAdministrationPolicy()
+    audit_service = AuditService(unit_of_work_factory, permission_service)
+    monitoring_service = MonitoringService(health, permission_service)
+    metrics_service = MetricsService(websocket_manager, settings.storage.root_path)
+    dashboard_service = AdminDashboardService(
+        metrics_service, monitoring_service, permission_service
+    )
+    maintenance_service = MaintenanceService(
+        unit_of_work_factory,
+        permission_service,
+        health.detailed_health,
+        audit_writer,
+    )
+    diagnostic_service = ServerDiagnosticService(
+        {
+            "database": database_manager,
+            "redis": redis_manager,
+            "storage": storage_health,
+            "directory": authentication_provider,
+            "tls": tls_health,
+            "outbox": outbox_health,
+            "workers": worker_health,
+            "websocket": websocket_health,
+            "backup": backup_health,
+        },
+        permission_service,
+    )
+    export_service = AuditExportService(
+        unit_of_work_factory,
+        permission_service,
+        settings.storage.export_path,
+        audit_writer,
+        lifetime=timedelta(hours=settings.retention.export_file_hours),
+    )
+    user_administration = UserAdministrationService(
+        unit_of_work_factory,
+        permission_service,
+        role_policy,
+        websocket_manager,
+        audit_writer,
+    )
+    session_administration = SessionAdministrationService(
+        unit_of_work_factory,
+        permission_service,
+        role_policy,
+        websocket_manager,
+        audit_writer,
+    )
+    connection_administration = ConnectionAdministrationService(
+        unit_of_work_factory,
+        permission_service,
+        websocket_manager,
+        audit_writer,
     )
     return ServerContainer(
         settings=settings,
@@ -190,11 +333,32 @@ def build_server_container(settings: ServerSettings) -> ServerContainer:
             groups=group_service,
             messaging=messaging_service,
             attachments=attachment_service,
+            admin=AdminService(),
+            user_administration=user_administration,
+            session_administration=session_administration,
+            connection_administration=connection_administration,
+            audit=audit_service,
+            audit_integrity=audit_integrity,
+            alerts=SecurityAlertService(
+                unit_of_work_factory, permission_service, audit_writer
+            ),
+            announcements=AnnouncementService(
+                unit_of_work_factory, permission_service, audit_writer
+            ),
+            configuration=ConfigurationService(
+                unit_of_work_factory, permission_service, audit_writer
+            ),
+            monitoring=monitoring_service,
+            dashboard=dashboard_service,
+            maintenance=maintenance_service,
+            diagnostics=diagnostic_service,
+            workers=worker_manager,
+            exports=export_service,
         ),
         logger=logger,
         websocket_manager=websocket_manager,
         websocket_dispatcher=websocket_dispatcher,
-        additional_components=(websocket_manager, outbox_worker),
+        additional_components=(websocket_manager, worker_manager, export_service),
     )
 
 

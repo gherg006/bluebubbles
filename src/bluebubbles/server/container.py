@@ -17,13 +17,30 @@ from bluebubbles.server.database.unit_of_work import (
 from bluebubbles.server.monitoring.health import HealthAggregator
 from bluebubbles.server.monitoring.storage import StorageHealthCheck
 from bluebubbles.server.redis import RedisManager
+from bluebubbles.server.services.administration import (
+    AdminService,
+    ConnectionAdministrationService,
+    SessionAdministrationService,
+    UserAdministrationService,
+)
+from bluebubbles.server.services.alerts import SecurityAlertService
+from bluebubbles.server.services.announcements import AnnouncementService
 from bluebubbles.server.services.attachments import AttachmentService
+from bluebubbles.server.services.audit import AuditIntegrityService, AuditService
 from bluebubbles.server.services.authentication import AuthenticationService
+from bluebubbles.server.services.configuration import ConfigurationService
 from bluebubbles.server.services.contacts import ContactService
 from bluebubbles.server.services.conversations import ConversationService
+from bluebubbles.server.services.diagnostics import ServerDiagnosticService
+from bluebubbles.server.services.exports import AuditExportService
 from bluebubbles.server.services.groups import GroupService
 from bluebubbles.server.services.keys import PublicKeyService
+from bluebubbles.server.services.maintenance import MaintenanceService
 from bluebubbles.server.services.messaging import MessagingService
+from bluebubbles.server.services.monitoring import (
+    AdminDashboardService,
+    MonitoringService,
+)
 from bluebubbles.server.services.permissions import PermissionService
 from bluebubbles.server.services.sessions import SessionService
 from bluebubbles.server.services.users import UserService
@@ -32,6 +49,7 @@ from bluebubbles.server.websocket.dispatcher import (
     WebSocketRateLimiter,
 )
 from bluebubbles.server.websocket.manager import WebSocketConnectionManager
+from bluebubbles.server.workers.manager import WorkerManager
 from bluebubbles.shared.models.health import DetailedHealthResponse
 
 __all__ = [
@@ -69,6 +87,21 @@ class ServerServices:
     groups: GroupService | None = None
     messaging: MessagingService | None = None
     attachments: AttachmentService | None = None
+    admin: AdminService | None = None
+    user_administration: UserAdministrationService | None = None
+    session_administration: SessionAdministrationService | None = None
+    connection_administration: ConnectionAdministrationService | None = None
+    audit: AuditService | None = None
+    audit_integrity: AuditIntegrityService | None = None
+    alerts: SecurityAlertService | None = None
+    announcements: AnnouncementService | None = None
+    configuration: ConfigurationService | None = None
+    monitoring: MonitoringService | None = None
+    dashboard: AdminDashboardService | None = None
+    maintenance: MaintenanceService | None = None
+    diagnostics: ServerDiagnosticService | None = None
+    workers: WorkerManager | None = None
+    exports: AuditExportService | None = None
 
 
 class ServerContainer:

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bluebubbles.server.database.models.outbox import OutboxEventORM
@@ -173,6 +173,15 @@ class SqlAlchemyOutboxRepository:
             delete(OutboxEventORM).where(OutboxEventORM.id.in_(ids))
         )
         return result.rowcount or 0
+
+    async def count_unpublished(self) -> int:
+        """Return the current durable delivery backlog size."""
+        value = await self._session.scalar(
+            select(func.count())
+            .select_from(OutboxEventORM)
+            .where(OutboxEventORM.published_at.is_(None))
+        )
+        return int(value or 0)
 
     @staticmethod
     def _to_domain(record: OutboxEventORM) -> OutboxEvent:

@@ -3,6 +3,7 @@
 from bluebubbles.server.repositories.interfaces.administration import (
     AdministrationRepository,
 )
+from bluebubbles.server.repositories.interfaces.alerts import SecurityAlertRepository
 from bluebubbles.server.repositories.interfaces.announcements import (
     AnnouncementRepository,
 )
@@ -37,5 +38,6 @@ __all__ = [
     "OutboxRepository",
     "PublicKeyRepository",
     "SessionRepository",
+    "SecurityAlertRepository",
     "UserRepository",
 ]

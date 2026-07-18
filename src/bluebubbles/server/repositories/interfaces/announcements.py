@@ -14,6 +14,10 @@ class AnnouncementRepository(Protocol):
 
     async def get_by_id(self, announcement_id: UUID) -> Announcement | None: ...
 
+    async def update(
+        self, announcement: Announcement, *, expected_version: int
+    ) -> Announcement: ...
+
     async def list_current(self, at: datetime, *, limit: int) -> list[Announcement]: ...
 
     async def acknowledge(

@@ -117,6 +117,21 @@ class WebSocketConnectionManager:
         async with self._lock:
             return len(self._connections_by_id)
 
+    async def list_connections(self) -> tuple[WebSocketConnection, ...]:
+        """Return a stable transient snapshot for authorised administration."""
+        async with self._lock:
+            return tuple(self._connections_by_id.values())
+
+    async def disconnect_connection(self, connection_id: UUID, reason: str) -> bool:
+        """Close one connection without changing its persistent session."""
+        async with self._lock:
+            connection = self._connections_by_id.get(connection_id)
+        if connection is None:
+            return False
+        await connection.close(1008, reason[:123])
+        await self.unregister(connection_id)
+        return True
+
     async def _connections_for(
         self, index: dict[UUID, set[UUID]], key: UUID
     ) -> tuple[WebSocketConnection, ...]:

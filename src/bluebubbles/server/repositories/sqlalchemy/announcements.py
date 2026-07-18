@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bluebubbles.server.database.models.announcements import (
@@ -54,6 +54,27 @@ class SqlAlchemyAnnouncementRepository:
         """Return one announcement by identifier."""
         record = await self._session.get(AnnouncementORM, announcement_id)
         return self._to_domain(record) if record is not None else None
+
+    async def update(
+        self, announcement: Announcement, *, expected_version: int
+    ) -> Announcement:
+        """Persist one optimistic publication or withdrawal transition."""
+        result = await self._session.execute(
+            update(AnnouncementORM)
+            .where(
+                AnnouncementORM.id == announcement.id,
+                AnnouncementORM.version == expected_version,
+            )
+            .values(
+                published_at=announcement.published_at,
+                withdrawn_at=announcement.withdrawn_at,
+                updated_at=announcement.updated_at,
+                version=announcement.version,
+            )
+        )
+        if result.rowcount != 1:
+            raise ValueError("Announcement changed concurrently")
+        return announcement
 
     async def list_current(self, at: datetime, *, limit: int) -> list[Announcement]:
         """Return a bounded newest-first list of currently visible announcements."""

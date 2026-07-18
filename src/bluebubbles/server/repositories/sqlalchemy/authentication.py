@@ -17,6 +17,7 @@ from bluebubbles.server.database.models.sessions import LoginAttemptORM
 from bluebubbles.server.domain.users import (
     LocalCredential,
     Permission,
+    Role,
     User,
     normalise_username,
 )
@@ -77,6 +78,21 @@ class SqlAlchemyAuthenticationRepository:
         )
         if result.rowcount != 1:
             raise ValueError("Local credential was not found")
+
+    async def create_local_credential(self, credential: LocalCredential) -> None:
+        """Stage a new Argon2id verifier without committing or retaining plaintext."""
+        self._session.add(
+            LocalCredentialORM(
+                user_id=credential.user_id,
+                created_at=credential.created_at,
+                updated_at=credential.updated_at,
+                password_hash=credential.password_hash,
+                password_changed_at=credential.created_at,
+                failed_login_count=credential.failed_attempts,
+                locked_until=credential.locked_until,
+            )
+        )
+        await flush_changes(self._session)
 
     async def add_login_attempt(
         self,
@@ -154,3 +170,27 @@ class SqlAlchemyAuthenticationRepository:
             select(RoleORM.name).where(RoleORM.id == role_id)
         )
         return str(value) if value is not None else None
+
+    async def get_role(self, role_id: UUID) -> Role | None:
+        """Return one role with its current named permission grants."""
+        record = await self._session.get(RoleORM, role_id)
+        if record is None:
+            return None
+        return Role(
+            id=record.id,
+            name=record.name,
+            permissions=await self.permissions_for_role(record.id),
+        )
+
+    async def count_enabled_users_with_role(self, role_id: UUID) -> int:
+        """Count enabled, non-deleted accounts assigned to one role."""
+        value = await self._session.scalar(
+            select(func.count())
+            .select_from(UserORM)
+            .where(
+                UserORM.role_id == role_id,
+                UserORM.is_enabled.is_(True),
+                UserORM.deleted_at.is_(None),
+            )
+        )
+        return int(value or 0)

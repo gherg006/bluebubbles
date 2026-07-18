@@ -20,4 +20,5 @@ class AuditMapper:
             details=record.details,
             previous_hash=record.previous_hash,
             event_hash=record.entry_hash,
+            sequence_number=record.sequence_number,
         )

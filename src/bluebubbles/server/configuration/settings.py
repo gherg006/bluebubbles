@@ -319,6 +319,8 @@ class MonitoringSettings(ContractModel):
     database_latency_warning_ms: Annotated[float, Field(gt=0)] = 100
     redis_latency_warning_ms: Annotated[float, Field(gt=0)] = 50
     repeated_failure_alert_threshold: Annotated[int, Field(gt=0)] = 3
+    backup_status_path: Path | None = None
+    backup_maximum_age_hours: Annotated[int, Field(gt=0)] = 24
 
     @model_validator(mode="after")
     def validate_threshold_order(self) -> "MonitoringSettings":

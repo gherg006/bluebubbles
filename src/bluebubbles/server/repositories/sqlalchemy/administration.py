@@ -4,14 +4,18 @@ from collections.abc import Mapping
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bluebubbles.server.database.models.administration import WorkerExecutionRecordORM
+from bluebubbles.server.database.models.administration import (
+    DataExportJobORM,
+    WorkerExecutionRecordORM,
+)
 from bluebubbles.server.repositories.sqlalchemy._common import (
     flush_changes,
     require_aware,
 )
+from bluebubbles.shared.models.administration import DataExportJobResponse, JobState
 
 
 class SqlAlchemyAdministrationRepository:
@@ -74,6 +78,88 @@ class SqlAlchemyAdministrationRepository:
                 processed_count=processed_count,
                 failure_count=failure_count,
                 error_code=error_code,
+            )
+        )
+        return result.rowcount == 1
+
+    async def add_export_job(
+        self,
+        job: DataExportJobResponse,
+        *,
+        requested_by: UUID,
+        export_type: str,
+        filters: Mapping[str, object],
+        expires_at: datetime,
+    ) -> None:
+        """Stage one protected audit-export job."""
+        require_aware(job.requested_at, "requested_at")
+        require_aware(expires_at, "expires_at")
+        self._session.add(
+            DataExportJobORM(
+                id=job.id,
+                requested_by=requested_by,
+                export_type=export_type,
+                filters=dict(filters),
+                status=job.state.value,
+                storage_reference=None,
+                created_at=job.requested_at,
+                started_at=None,
+                completed_at=None,
+                expires_at=expires_at,
+                failure_code=None,
+            )
+        )
+        await flush_changes(self._session)
+
+    async def get_export_job(
+        self, job_id: UUID
+    ) -> tuple[DataExportJobResponse, UUID, datetime, str | None] | None:
+        """Return safe job state plus ownership and protected internal reference."""
+        record = await self._session.scalar(
+            select(DataExportJobORM).where(DataExportJobORM.id == job_id)
+        )
+        if record is None or record.expires_at is None:
+            return None
+        state = JobState(record.status)
+        return (
+            DataExportJobResponse(
+                id=record.id,
+                state=state,
+                requested_at=record.created_at,
+                completed_at=record.completed_at,
+                progress_percent=100 if state is JobState.SUCCEEDED else 0,
+                download_url=(
+                    f"/api/v1/admin/exports/{record.id}/download"
+                    if state is JobState.SUCCEEDED
+                    else None
+                ),
+            ),
+            record.requested_by,
+            record.expires_at,
+            record.storage_reference,
+        )
+
+    async def complete_export_job(
+        self,
+        job_id: UUID,
+        *,
+        completed_at: datetime,
+        storage_reference: str | None,
+        failure_code: str | None,
+    ) -> bool:
+        """Finish one queued/running export with a safe result code."""
+        require_aware(completed_at, "completed_at")
+        result = await self._session.execute(
+            update(DataExportJobORM)
+            .where(
+                DataExportJobORM.id == job_id,
+                DataExportJobORM.completed_at.is_(None),
+            )
+            .values(
+                status="failed" if failure_code else "succeeded",
+                completed_at=completed_at,
+                storage_reference=storage_reference,
+                failure_code=failure_code,
             )
         )
         return result.rowcount == 1

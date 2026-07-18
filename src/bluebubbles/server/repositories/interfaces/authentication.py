@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from bluebubbles.server.domain.users import LocalCredential, Permission, User
+from bluebubbles.server.domain.users import LocalCredential, Permission, Role, User
 
 
 class AuthenticationRepository(Protocol):
@@ -15,6 +15,8 @@ class AuthenticationRepository(Protocol):
     ) -> tuple[User, LocalCredential] | None: ...
 
     async def update_local_credential(self, credential: LocalCredential) -> None: ...
+
+    async def create_local_credential(self, credential: LocalCredential) -> None: ...
 
     async def add_login_attempt(
         self,
@@ -35,3 +37,7 @@ class AuthenticationRepository(Protocol):
     async def permissions_for_role(self, role_id: UUID) -> frozenset[Permission]: ...
 
     async def role_name(self, role_id: UUID) -> str | None: ...
+
+    async def get_role(self, role_id: UUID) -> Role | None: ...
+
+    async def count_enabled_users_with_role(self, role_id: UUID) -> int: ...

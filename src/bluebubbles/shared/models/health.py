@@ -47,6 +47,7 @@ class DetailedHealthResponse(PublicHealthResponse):
     application_version: str
     protocol_versions: tuple[int, ...]
     components: tuple[ComponentHealth, ...]
+    capabilities: dict[str, CapabilityState] = Field(default_factory=dict)
 
 
 class ClientVisibleLimits(ImmutableContractModel):

@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
@@ -9,16 +10,24 @@ import pytest
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from bluebubbles.server.database.models.administration import DataExportJobORM
 from bluebubbles.server.database.models.announcements import AnnouncementORM
+from bluebubbles.server.database.models.audit import SecurityAlertORM
 from bluebubbles.server.database.models.configuration import ConfigurationVersionORM
 from bluebubbles.server.database.models.contacts import ContactRelationshipORM
 from bluebubbles.server.database.models.identity import UserORM
 from bluebubbles.server.database.models.keys import UserPublicKeyORM
+from bluebubbles.server.domain.alerts import SecurityAlert
 from bluebubbles.server.domain.announcements import Announcement
 from bluebubbles.server.domain.configuration import ConfigurationRevision
 from bluebubbles.server.domain.contacts import Contact
 from bluebubbles.server.domain.sessions import Session
-from bluebubbles.server.domain.users import PublicKeyRecord, User
+from bluebubbles.server.domain.users import (
+    LocalCredential,
+    Permission,
+    PublicKeyRecord,
+    User,
+)
 from bluebubbles.server.repositories.mapping.sessions import SessionMapper
 from bluebubbles.server.repositories.mapping.users import UserMapper
 from bluebubbles.server.repositories.sqlalchemy._common import (
@@ -28,8 +37,14 @@ from bluebubbles.server.repositories.sqlalchemy._common import (
 from bluebubbles.server.repositories.sqlalchemy.administration import (
     SqlAlchemyAdministrationRepository,
 )
+from bluebubbles.server.repositories.sqlalchemy.alerts import (
+    SqlAlchemySecurityAlertRepository,
+)
 from bluebubbles.server.repositories.sqlalchemy.announcements import (
     SqlAlchemyAnnouncementRepository,
+)
+from bluebubbles.server.repositories.sqlalchemy.authentication import (
+    SqlAlchemyAuthenticationRepository,
 )
 from bluebubbles.server.repositories.sqlalchemy.configuration import (
     SqlAlchemyConfigurationRepository,
@@ -46,6 +61,7 @@ from bluebubbles.server.repositories.sqlalchemy.sessions import (
 from bluebubbles.server.repositories.sqlalchemy.users import SqlAlchemyUserRepository
 from bluebubbles.server.repositories.types import UserSearchQuery
 from bluebubbles.shared.errors.exceptions import ConflictError, RepositoryError
+from bluebubbles.shared.models.administration import DataExportJobResponse, JobState
 from bluebubbles.shared.models.announcements import (
     AnnouncementPriority,
     AnnouncementTargetType,
@@ -444,3 +460,129 @@ async def test_configuration_and_administration_repositories() -> None:
             processed_count=-1,
             failure_count=0,
         )
+
+
+@pytest.mark.asyncio
+async def test_security_alert_repository_maps_and_updates_lifecycle() -> None:
+    """Security alert persistence supports locks, bounds, and concurrency."""
+    fake = FakeSession()
+    repository = SqlAlchemySecurityAlertRepository(_session(fake))
+    alert = SecurityAlert(
+        id=uuid4(),
+        created_at=NOW,
+        updated_at=NOW,
+        code="audit_integrity_failed",
+        title="Audit verification failed",
+        summary="The recent audit chain did not verify.",
+        severity="critical",
+        source_component="audit",
+    )
+    assert await repository.add(alert) is alert
+    record = cast(SecurityAlertORM, fake.added[-1])
+    fake.execute_results = [FakeResult(record), FakeResult(), FakeResult(record)]
+    assert await repository.get_by_id(alert.id, for_update=True) == alert
+    assert await repository.get_by_id(uuid4()) is None
+    assert await repository.get_open_by_code(alert.code, for_update=True) == alert
+    fake.scalar_results = [[record]]
+    assert await repository.list_recent(limit=1) == (alert,)
+    with pytest.raises(ValueError, match="between"):
+        await repository.list_recent(limit=0)
+    fake.execute_results = [FakeResult(rowcount=1), FakeResult(rowcount=0)]
+    assert await repository.update(alert, expected_version=1) is alert
+    with pytest.raises(ValueError, match="concurrently"):
+        await repository.update(alert, expected_version=1)
+
+
+@pytest.mark.asyncio
+async def test_export_job_and_initial_credential_persistence() -> None:
+    """Export ownership/state and initial password verifiers map safely."""
+    fake = FakeSession()
+    administration = SqlAlchemyAdministrationRepository(_session(fake))
+    job = DataExportJobResponse(id=uuid4(), state=JobState.QUEUED, requested_at=NOW)
+    owner = uuid4()
+    expiry = NOW + timedelta(hours=24)
+    await administration.add_export_job(
+        job,
+        requested_by=owner,
+        export_type="audit_csv",
+        filters={"severity": "warning"},
+        expires_at=expiry,
+    )
+    record = cast(DataExportJobORM, fake.added[-1])
+    fake.single_scalar_results = [record, None]
+    loaded = await administration.get_export_job(job.id)
+    assert loaded is not None and loaded[1] == owner and loaded[2] == expiry
+    assert await administration.get_export_job(uuid4()) is None
+    record.status = "succeeded"
+    record.completed_at = NOW
+    record.storage_reference = "protected.csv"
+    fake.single_scalar_results = [record]
+    succeeded = await administration.get_export_job(job.id)
+    assert succeeded is not None
+    assert succeeded[0].progress_percent == 100
+    assert succeeded[0].download_url is not None
+    fake.execute_results = [FakeResult(rowcount=1)]
+    assert await administration.complete_export_job(
+        job.id,
+        completed_at=NOW,
+        storage_reference="protected.csv",
+        failure_code=None,
+    )
+
+    credential = LocalCredential(
+        id=owner,
+        created_at=NOW,
+        updated_at=NOW,
+        user_id=owner,
+        password_hash="argon2id-hash",
+    )
+    authentication = SqlAlchemyAuthenticationRepository(_session(fake))
+    await authentication.create_local_credential(credential)
+    assert fake.added[-1].password_hash == "argon2id-hash"
+
+
+@pytest.mark.asyncio
+async def test_authentication_repository_metadata_queries_and_updates() -> None:
+    """Authentication metadata remains bounded and password free."""
+    fake = FakeSession()
+    repository = SqlAlchemyAuthenticationRepository(_session(fake))
+    user_id = uuid4()
+    credential = LocalCredential(
+        id=user_id,
+        created_at=NOW,
+        updated_at=NOW,
+        user_id=user_id,
+        password_hash="argon2id-hash",
+    )
+    fake.execute_results = [FakeResult(rowcount=1), FakeResult(rowcount=0)]
+    await repository.update_local_credential(credential)
+    with pytest.raises(ValueError, match="not found"):
+        await repository.update_local_credential(credential)
+    await repository.add_login_attempt(
+        attempt_id=uuid4(),
+        normalised_username="Alice",
+        source_ip="192.0.2.1",
+        result="failed",
+        failure_category="invalid",
+        attempted_at=NOW,
+        correlation_id=uuid4(),
+    )
+    fake.single_scalar_results = [2, 3]
+    assert await repository.count_recent_failures(
+        normalised_username="Alice", source_ip="192.0.2.1", since=NOW
+    ) == (2, 3)
+    fake.scalar_results = [[Permission.AUDIT_VIEW.value]]
+    assert await repository.permissions_for_role(user_id) == frozenset(
+        {Permission.AUDIT_VIEW}
+    )
+    fake.single_scalar_results = ["Administrator"]
+    assert await repository.role_name(user_id) == "Administrator"
+    fake.get_results = [
+        SimpleNamespace(id=user_id, name="Administrator"),
+        None,
+    ]
+    fake.scalar_results = [[Permission.AUDIT_VIEW.value]]
+    assert (await repository.get_role(user_id)).name == "Administrator"  # type: ignore[union-attr]
+    assert await repository.get_role(uuid4()) is None
+    fake.single_scalar_results = [1]
+    assert await repository.count_enabled_users_with_role(user_id) == 1

@@ -50,6 +50,7 @@ development = [
 [project.scripts]
 bluebubbles-server = "bluebubbles.server.main:main"
 bluebubbles-client = "bluebubbles.client.main:main"
+bluebubbles-create-admin = "bluebubbles.server.create_admin:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

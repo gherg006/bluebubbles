@@ -61,6 +61,28 @@ class SqlAlchemyConfigurationRepository:
         record = await self._latest_record()
         return dict(record.configuration) if record is not None else None
 
+    async def list_history(self, *, limit: int) -> tuple[ConfigurationRevision, ...]:
+        """Return a bounded newest-first public configuration history."""
+        if not 1 <= limit <= 200:
+            raise ValueError("Configuration history limit must be between 1 and 200")
+        records = (
+            await self._session.scalars(
+                select(ConfigurationVersionORM)
+                .order_by(ConfigurationVersionORM.version_number.desc())
+                .limit(limit)
+            )
+        ).all()
+        return tuple(
+            ConfigurationRevision(
+                revision=record.version_number,
+                changed_at=record.changed_at,
+                changed_by=record.changed_by,
+                changed_keys=frozenset(record.configuration),
+                public_values=record.configuration,
+            )
+            for record in records
+        )
+
     async def _latest_record(self) -> ConfigurationVersionORM | None:
         statement = (
             select(ConfigurationVersionORM)

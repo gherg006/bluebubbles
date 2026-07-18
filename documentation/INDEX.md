@@ -26,6 +26,9 @@ instead of the complete repository or repeated master specification.
 | Local client storage and search | `development/local-client-storage.md` | `client/storage`, `client/services/local_storage.py`, `client/services/search.py` |
 | Offline queue and synchronisation | `development/offline-queue-and-synchronisation.md` | `client/services/offline_queue.py`, `client/services/synchronisation.py`, `client/services/connectivity.py` |
 | PySide6 desktop interface | `development/pyside6-interface.md` | `client/ui`, `client/application.py` |
+| Administration and tamper-evident audit | `development/administration-and-audit.md` | `server/services/administration.py`, `audit.py`, `alerts.py`, `exports.py`, `routes/administration.py` |
+| Monitoring, maintenance and workers | `development/monitoring-and-workers.md` | `server/monitoring`, `server/workers`, `server/services/monitoring.py`, `maintenance.py` |
+| Administration incident response | `operations/administration-runbooks.md` | Administrative API, dashboard, health and audit evidence |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -41,6 +44,7 @@ contract must be checked.
 | `bluebubbles.server.application:create_application` | Construct the server app and lifespan-owned container |
 | `bluebubbles.client.main:main` | Start the independently configured PySide6 client |
 | `bluebubbles.client.application:create_application` | Construct the current client application boundary |
+| `bluebubbles.server.create_admin:main` | Interactively create the first validated Administrator |
 | `alembic.ini` / `migrations/env.py` | Render or apply PostgreSQL migrations |
 
 ## Persistence lookup
@@ -57,6 +61,7 @@ contract must be checked.
 | Immutable audit chain | `repositories/interfaces/audit.py` | `repositories/sqlalchemy/audit.py` |
 | Announcements | `repositories/interfaces/announcements.py` | `repositories/sqlalchemy/announcements.py` |
 | Admin jobs | `repositories/interfaces/administration.py` | `repositories/sqlalchemy/administration.py` |
+| Security alerts | `repositories/interfaces/alerts.py` | `repositories/sqlalchemy/alerts.py` |
 | Configuration history | `repositories/interfaces/configuration.py` | `repositories/sqlalchemy/configuration.py` |
 | Durable events | `repositories/interfaces/outbox.py` | `repositories/sqlalchemy/outbox.py` |
 | Shared transaction | n/a | `database/unit_of_work.py` |
@@ -86,6 +91,8 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | Encrypted local persistence, migration, recovery, cache policy and private search | `tests/unit/client/test_task_16_local_storage.py`, `tests/unit/client/test_task_16_search.py` |
 | Ordered offline replay, dependency recovery, sync fallback, conflicts and tombstones | `tests/unit/client/test_task_17_offline_queue.py`, `tests/unit/client/test_task_17_synchronisation.py` |
 | ViewModel isolation, optimistic message state, navigation, accessibility, themes and widgets | `tests/unit/client/test_task_18_viewmodels.py`, `tests/unit/client/test_task_18_widgets.py` |
+| Administration policy, audit integrity, alerts, exports, bootstrap and routes | `tests/unit/server/test_task_19_administration.py`, `test_repository_sqlalchemy_support.py` |
+| Dependency/capability health, backup evidence, workers, diagnostics and maintenance | `tests/unit/server/test_task_20_monitoring_workers.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths

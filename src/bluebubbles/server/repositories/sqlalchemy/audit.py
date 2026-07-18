@@ -58,6 +58,8 @@ class SqlAlchemyAuditRepository:
         if event.previous_hash != state.last_hash:
             raise ValueError("Audit event does not extend the current chain head")
         sequence = state.event_count + 1
+        if event.sequence_number not in {0, sequence}:
+            raise ValueError("Audit event sequence does not extend the chain head")
         self._session.add(
             AuditEventORM(
                 sequence_number=sequence,

@@ -14,6 +14,7 @@ from bluebubbles.server.configuration.loader import ConfigurationLoader
 from bluebubbles.server.configuration.settings import ServerSettings
 from bluebubbles.server.container import ServerContainer
 from bluebubbles.server.dependencies import get_server_container
+from bluebubbles.server.routes.administration import router as administration_router
 from bluebubbles.server.routes.attachments import router as attachments_router
 from bluebubbles.server.routes.authentication import router as authentication_router
 from bluebubbles.server.routes.contacts import router as contacts_router
@@ -83,7 +84,26 @@ def create_application(
     application.include_router(groups_router)
     application.include_router(messages_router)
     application.include_router(attachments_router)
+    application.include_router(administration_router)
     application.include_router(websocket_router)
+
+    @application.middleware("http")
+    async def maintenance_write_guard(request: Request, call_next):  # type: ignore[no-untyped-def]
+        """Reject ordinary writes during maintenance while preserving control paths."""
+        services = getattr(resolved_container, "services", None)
+        service = getattr(services, "maintenance", None)
+        exempt = (
+            request.url.path.startswith("/health/")
+            or request.url.path.startswith("/api/v1/admin/maintenance")
+            or request.url.path in {"/api/v1/auth/logout", "/api/v1/auth/logout-all"}
+        )
+        if (
+            service is not None
+            and request.method not in {"GET", "HEAD", "OPTIONS"}
+            and not exempt
+        ):
+            service.require_write_available()
+        return await call_next(request)
 
     @application.exception_handler(BlueBubblesError)
     async def application_error_handler(

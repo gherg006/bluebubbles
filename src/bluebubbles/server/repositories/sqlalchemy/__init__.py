@@ -3,6 +3,9 @@
 from bluebubbles.server.repositories.sqlalchemy.administration import (
     SqlAlchemyAdministrationRepository,
 )
+from bluebubbles.server.repositories.sqlalchemy.alerts import (
+    SqlAlchemySecurityAlertRepository,
+)
 from bluebubbles.server.repositories.sqlalchemy.announcements import (
     SqlAlchemyAnnouncementRepository,
 )
@@ -49,5 +52,6 @@ __all__ = [
     "SqlAlchemyOutboxRepository",
     "SqlAlchemyPublicKeyRepository",
     "SqlAlchemySessionRepository",
+    "SqlAlchemySecurityAlertRepository",
     "SqlAlchemyUserRepository",
 ]
