@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the BlueBubbles coordinated backup daily
+
+[Timer]
+OnCalendar=*-*-* 23:00:00
+Persistent=true
+RandomizedDelaySec=10m
+Unit=bluebubbles-backup.service
+
+[Install]
+WantedBy=timers.target

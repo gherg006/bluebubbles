@@ -19,6 +19,7 @@ CHECKS: Final[tuple[tuple[str, ...], ...]] = (
         "migrations",
     ),
     ("-m", "ruff", "check", "src", "tests", "scripts", "migrations"),
+    ("scripts/testing/run_security_checks.py",),
     ("-m", "mypy", "src", "tests", "scripts", "migrations"),
     ("-m", "pytest"),
 )

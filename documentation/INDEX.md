@@ -28,7 +28,10 @@ instead of the complete repository or repeated master specification.
 | PySide6 desktop interface | `development/pyside6-interface.md` | `client/ui`, `client/application.py` |
 | Administration and tamper-evident audit | `development/administration-and-audit.md` | `server/services/administration.py`, `audit.py`, `alerts.py`, `exports.py`, `routes/administration.py` |
 | Monitoring, maintenance and workers | `development/monitoring-and-workers.md` | `server/monitoring`, `server/workers`, `server/services/monitoring.py`, `maintenance.py` |
+| Deployment and Windows packaging | `development/deployment-and-packaging.md` | `deployment`, `packaging/windows`, `scripts/deployment`, `scripts/packaging`, `src/bluebubbles/deployment` |
+| Full-system testing and acceptance | `testing/testing-strategy.md`, `testing/acceptance-matrix.md` | `tests`, `scripts/testing`, `.github/workflows/quality.yml` |
 | Administration incident response | `operations/administration-runbooks.md` | Administrative API, dashboard, health and audit evidence |
+| Installation, backup, restore and upgrade | `operations/deployment-and-installation.md`, `operations/backup-restore-upgrade.md` | Debian/Nginx/systemd templates, release, backup and packaging scripts |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
@@ -93,6 +96,8 @@ pages, cursor encoding, and stored chunk metadata are in `repositories/types.py`
 | ViewModel isolation, optimistic message state, navigation, accessibility, themes and widgets | `tests/unit/client/test_task_18_viewmodels.py`, `tests/unit/client/test_task_18_widgets.py` |
 | Administration policy, audit integrity, alerts, exports, bootstrap and routes | `tests/unit/server/test_task_19_administration.py`, `test_repository_sqlalchemy_support.py` |
 | Dependency/capability health, backup evidence, workers, diagnostics and maintenance | `tests/unit/server/test_task_20_monitoring_workers.py` |
+| Deployment manifests, path/checksum boundaries, proxy topology and packaging | `tests/unit/shared/test_task_21_deployment.py` |
+| Generated boundaries, properties, secrets and dependency regressions | `tests/security/test_task_22_*.py` |
 | Executable foundation workflow | `tests/integration/test_foundation_workflow.py` |
 
 ## Generated and local-only paths

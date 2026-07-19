@@ -1,0 +1,36 @@
+[Unit]
+Description=BlueBubbles encrypted LAN messaging server
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+Requires=postgresql.service redis-server.service
+RequiresMountsFor=/var/lib/bluebubbles/attachments
+
+[Service]
+Type=simple
+User=bluebubbles
+Group=bluebubbles
+WorkingDirectory=/opt/bluebubbles/current
+EnvironmentFile=/etc/bluebubbles/environment
+ExecStart=/opt/bluebubbles/shared/venv/bin/bluebubbles-server run --environment production --config-directory /etc/bluebubbles
+Restart=on-failure
+RestartSec=5s
+TimeoutStartSec=90s
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/bluebubbles /var/log/bluebubbles
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

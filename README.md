@@ -5,15 +5,15 @@ local-area networks. The project is being built incrementally from the Version
 1.0 engineering specification, with strict separation between shared protocol
 contracts, server code, and the PySide6 desktop client.
 
-This repository currently contains the verified foundation, shared protocol
-contracts, strict client/server configuration, domain entities, typed error and
-recovery primitives, the complete versioned PostgreSQL schema, repository adapters,
-and explicit Unit of Work transaction ownership. Authentication infrastructure and
-private-key operations are added in later specification stages. Start with the
-[repository index](documentation/INDEX.md), or see [domain models and error handling](documentation/development/domain-models-and-errors.md)
-for the server/client plaintext boundary and error compatibility rules, and
-[database schema and migrations](documentation/development/database-schema-and-migrations.md)
-for the persistence contract and controlled upgrade process.
+The implementation now covers Tasks 1-22: shared contracts, encrypted messaging
+and attachments, PostgreSQL persistence, Redis-backed delivery, offline client
+storage and synchronisation, the PySide6 interface, administration/monitoring,
+Debian deployment, Windows packaging, and automated full-system test evidence.
+Live infrastructure, usability, accessibility, and clean-machine acceptance items
+that have not run are explicitly retained in the
+[acceptance matrix](documentation/testing/acceptance-matrix.md). Start with the
+[repository index](documentation/INDEX.md) and the
+[testing strategy](documentation/testing/testing-strategy.md).
 
 ## Requirements
 
@@ -21,9 +21,10 @@ for the persistence contract and controlled upgrade process.
 - Windows 11 for the desktop client
 - Debian 13 for the production server
 
-PostgreSQL is required to apply or exercise the server schema and real persistence
-workflows. Redis becomes necessary when its runtime infrastructure stage is
-introduced. Server lifecycle ownership does not connect to either service yet.
+PostgreSQL is the authoritative server store. Redis supports revocation,
+rate-limiting, cache, and cross-process event delivery; documented degraded modes
+do not make it a persistence substitute. LDAP is required only when that
+authentication provider is selected.
 
 ## Development setup
 
@@ -79,12 +80,15 @@ python -m bluebubbles.client.main
 The checked-in client configuration targets the eventual encrypted LAN endpoint
 `https://192.168.0.210:8443`. For local development, copy the client YAML and
 set its HTTP/WebSocket endpoints to `http://127.0.0.1:8443` and
-`ws://127.0.0.1:8443/ws`, with `application.environment: development`.
+`ws://127.0.0.1:8443/api/v1/ws`, with
+`application.environment: development`.
 
 The Debian server and Windows client have separate settings models, loaders,
 configuration files, and environment-variable namespaces. See
-[configuration and deployment](documentation/development/configuration.md) for
-source precedence, protected secret files, TLS guidance, and production setup.
+[configuration](documentation/development/configuration.md) for source precedence
+and protected secrets, and
+[deployment and installation](documentation/operations/deployment-and-installation.md)
+for the production topology.
 
 ## Dependency management
 

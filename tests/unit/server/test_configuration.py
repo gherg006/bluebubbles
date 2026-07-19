@@ -150,10 +150,43 @@ def test_production_rejects_all_unsafe_development_defaults() -> None:
     with pytest.raises(ConfigurationError) as captured:
         validate_production_safety(settings)
     message = str(captured.value)
-    assert "tls.enabled" in message
+    assert "network.trusted_proxy_count" in message
     assert "authentication.provider" in message
     assert "tokens.signing_secret" in message
     assert "redis.url" in message
+
+
+def test_production_accepts_tls_termination_only_on_loopback_behind_one_proxy() -> None:
+    settings = ServerSettings.model_validate(
+        {
+            "application": {"environment": "production"},
+            "network": {
+                "host": "127.0.0.1",
+                "port": 8000,
+                "trusted_proxy_count": 1,
+            },
+            "tls": {"enabled": False},
+            "directory": {
+                "provider": "active_directory",
+                "server": "ad.example.internal",
+                "port": 636,
+                "bind_dn": "CN=service,DC=example,DC=internal",
+                "bind_password": "directory-secret",
+                "base_dn": "DC=example,DC=internal",
+            },
+            "authentication": {
+                "provider": "directory",
+                "allow_local_accounts": False,
+            },
+            "database": {
+                "url": "postgresql+asyncpg://app:unique-secret@127.0.0.1/bluebubbles"
+            },
+            "redis": {"url": "redis://:unique-secret@127.0.0.1:6379/0"},
+            "tokens": {"signing_secret": "x" * 64},
+        }
+    )
+
+    validate_production_safety(settings)
 
 
 def test_production_rejects_test_namespace() -> None:

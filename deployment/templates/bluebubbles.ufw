@@ -1,0 +1,5 @@
+# Replace the two documented subnets before applying this policy.
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow from <management-subnet> to any port 22 proto tcp
+ufw allow from <client-subnet> to any port 443 proto tcp

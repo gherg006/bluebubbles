@@ -56,7 +56,14 @@ def validate_production_safety(settings: ServerSettings) -> None:
     if not settings.directory.use_tls:
         failures.append("directory.use_tls must be true")
     if not settings.tls.enabled:
-        failures.append("tls.enabled must be true")
+        if settings.network.host not in {"127.0.0.1", "::1", "localhost"}:
+            failures.append(
+                "network.host must be loopback when TLS terminates at a reverse proxy"
+            )
+        if settings.network.trusted_proxy_count != 1:
+            failures.append(
+                "network.trusted_proxy_count must be 1 when TLS terminates at Nginx"
+            )
     if settings.authentication.provider in {
         AuthenticationProviderName.LOCAL,
         AuthenticationProviderName.MOCK,

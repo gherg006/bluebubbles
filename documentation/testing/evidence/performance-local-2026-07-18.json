@@ -1,0 +1,76 @@
+{
+  "recorded_at": "2026-07-18T17:00:59Z",
+  "application_version": "0.1.0",
+  "environment": {
+    "operating_system": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.5",
+    "processor": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "logical_cpu_count": 20,
+    "external_services": "none",
+    "dataset": "synthetic in-memory component baselines"
+  },
+  "scope_limitation": "These are local component baselines, not LAN, PostgreSQL, Redis, WebSocket, GUI, or full end-to-end acceptance measurements.",
+  "measurements": [
+    {
+      "test_id": "PERF-COMPONENT-001",
+      "name": "AES-256-GCM 8000-byte message encryption",
+      "value": 0.0024,
+      "unit": "ms median",
+      "threshold": 5.0,
+      "comparison": "less_than",
+      "passed": true,
+      "iterations": 500
+    },
+    {
+      "test_id": "PERF-COMPONENT-002",
+      "name": "canonical serialization with 100 recipients",
+      "value": 0.1153,
+      "unit": "ms median",
+      "threshold": 5.0,
+      "comparison": "less_than",
+      "passed": true,
+      "iterations": 500
+    },
+    {
+      "test_id": "PERF-COMPONENT-003",
+      "name": "Unicode search tokenization of 10000 words",
+      "value": 2.8739,
+      "unit": "ms median",
+      "threshold": 500.0,
+      "comparison": "less_than",
+      "passed": true,
+      "iterations": 50
+    },
+    {
+      "test_id": "PERF-COMPONENT-004",
+      "name": "FastAPI application construction without infrastructure startup",
+      "value": 2.3159,
+      "unit": "ms median",
+      "threshold": 2000.0,
+      "comparison": "less_than",
+      "passed": true,
+      "iterations": 20
+    },
+    {
+      "test_id": "PERF-COMPONENT-005",
+      "name": "AES-GCM attachment buffer throughput",
+      "value": 2741.56,
+      "unit": "MiB/s",
+      "threshold": 10.0,
+      "comparison": "greater_than",
+      "passed": true,
+      "iterations": 1
+    },
+    {
+      "test_id": "PERF-COMPONENT-006",
+      "name": "AES-GCM attachment peak traced allocation",
+      "value": 16.0,
+      "unit": "MiB",
+      "threshold": 64.0,
+      "comparison": "less_than",
+      "passed": true,
+      "iterations": 1
+    }
+  ],
+  "passed": true
+}

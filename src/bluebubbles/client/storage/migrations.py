@@ -16,8 +16,7 @@ Migration = Callable[[sqlite3.Connection], None]
 
 def _migration_001(connection: sqlite3.Connection) -> None:
     """Create the complete first local-cache schema."""
-    connection.executescript(
-        """
+    connection.executescript("""
         BEGIN IMMEDIATE;
         CREATE TABLE local_schema_version (
             singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -170,14 +169,12 @@ def _migration_001(connection: sqlite3.Connection) -> None:
         CREATE INDEX ix_cache_entries_eviction
             ON cache_entries(is_pinned, last_accessed_at);
         COMMIT;
-        """
-    )
+        """)
 
 
 def _migration_002(connection: sqlite3.Connection) -> None:
     """Add Task 17 queue orchestration, conflict and tombstone persistence."""
-    connection.executescript(
-        """
+    connection.executescript("""
         ALTER TABLE offline_actions ADD COLUMN user_id TEXT;
         ALTER TABLE offline_actions
             ADD COLUMN scope_type TEXT NOT NULL DEFAULT 'global';
@@ -215,8 +212,7 @@ def _migration_002(connection: sqlite3.Connection) -> None:
             reason_code TEXT NOT NULL,
             PRIMARY KEY (scope, resource_id)
         );
-        """
-    )
+        """)
 
 
 _MIGRATIONS: tuple[Migration, ...] = (_migration_001, _migration_002)

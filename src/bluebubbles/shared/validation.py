@@ -25,13 +25,13 @@ def validate_uuid_list(values: Iterable[UUID]) -> tuple[UUID, ...]:
 
 def normalise_display_text(value: str, *, maximum_length: int) -> str:
     """Trim display text and reject control characters or excessive length."""
+    if _CONTROL_CHARACTERS.search(value):
+        raise ValueError("Text cannot contain control characters")
     normalised = " ".join(value.split())
     if not normalised:
         raise ValueError("Text cannot be empty")
     if len(normalised) > maximum_length:
         raise ValueError(f"Text cannot exceed {maximum_length} characters")
-    if _CONTROL_CHARACTERS.search(normalised):
-        raise ValueError("Text cannot contain control characters")
     return normalised
 
 
