@@ -5,15 +5,16 @@ from __future__ import annotations
 from uuid import UUID
 
 from PySide6.QtCore import QSettings, Qt, Signal
-from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
+from PySide6.QtGui import QAction, QCloseEvent, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
-    QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
@@ -127,10 +128,12 @@ class LoginWindow(QMainWindow):
             self.error_banner.setFocus()
 
 
-class NavigationSidebar(QFrame):
-    """Expose authorised global navigation with stable shortcuts and labels."""
+class NavigationHeader(QFrame):
+    """Expose branded top-level navigation matching the supplied wireframe."""
 
     section_selected = Signal(str)
+    exit_requested = Signal()
+    help_requested = Signal()
 
     _ORDINARY = (
         (NavigationSection.CHATS, "Chats", "Ctrl+1"),
@@ -146,57 +149,76 @@ class NavigationSidebar(QFrame):
 
     def __init__(self, view_model: DesktopViewModel) -> None:
         super().__init__()
-        self.setObjectName("navigation_sidebar")
-        self.setMinimumWidth(132)
-        self.setMaximumWidth(180)
-        layout = QVBoxLayout(self)
-        self.group = QButtonGroup(self)
-        self.group.setExclusive(True)
-        self.buttons: dict[NavigationSection, QPushButton] = {}
+        self.setObjectName("navigation_header")
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(10, 6, 10, 6)
+        self.brand = QLabel("[logo] BlueBubbles")
+        self.brand.setObjectName("application_brand")
+        self.brand.setAccessibleName("BlueBubbles home")
+        layout.addWidget(self.brand)
+        layout.addStretch()
+
+        self.exit_button = QPushButton("Exit")
+        self.exit_button.setObjectName("exit_button")
+        self.exit_button.setAccessibleName("Exit BlueBubbles")
+        self.help_button = QPushButton("Help")
+        self.help_button.setObjectName("help_button")
+        self.help_button.setAccessibleName("Open help")
+        self.navigation_button = QPushButton("Chat user")
+        self.navigation_button.setObjectName("navigation_menu_button")
+        self.navigation_button.setAccessibleName("Open navigation menu")
+        self.navigation_menu = QMenu(self.navigation_button)
+        self.navigation_button.setMenu(self.navigation_menu)
+        self.navigation_actions: dict[NavigationSection, QAction] = {}
         for section, label, shortcut in self._ORDINARY:
-            self._add_button(layout, section, label, shortcut)
+            self._add_action(section, label, shortcut)
         if NavigationSection.ADMINISTRATION in view_model.administrative_sections:
-            self._add_button(
-                layout,
+            self._add_action(
                 NavigationSection.ADMINISTRATION,
                 "Administration",
                 "Ctrl+9",
             )
-        layout.addStretch()
-        logout = QPushButton("Log out")
-        logout.setAccessibleName("Log out")
-        logout.clicked.connect(view_model.logout)
-        layout.addWidget(logout)
-        self.buttons[NavigationSection.CHATS].setChecked(True)
+        self.navigation_menu.addSeparator()
+        logout = self.navigation_menu.addAction("Log out")
+        logout.triggered.connect(view_model.logout)
+        layout.addWidget(self.exit_button)
+        layout.addWidget(self.help_button)
+        layout.addWidget(self.navigation_button)
+        self.exit_button.clicked.connect(self.exit_requested.emit)
+        self.help_button.clicked.connect(self.help_requested.emit)
+        self.select(NavigationSection.CHATS)
 
     def select(self, section: NavigationSection) -> None:
-        """Synchronise checked state when navigation changes elsewhere."""
-        button = self.buttons.get(section)
-        if button is not None:
-            button.setChecked(True)
+        """Synchronise the menu and its compact current-section label."""
+        action = self.navigation_actions.get(section)
+        if action is None:
+            return
+        for candidate in self.navigation_actions.values():
+            candidate.setChecked(candidate is action)
+        self.navigation_button.setText(action.text())
 
-    def _add_button(
+    def set_chat_context(self, title: str) -> None:
+        """Expose the selected user in the reference-layout chat control."""
+        self.navigation_button.setText(f"Chat {title}")
+
+    def _add_action(
         self,
-        layout: QVBoxLayout,
         section: NavigationSection,
         label: str,
         shortcut: str,
     ) -> None:
-        button = QPushButton(label)
-        button.setCheckable(True)
-        button.setAccessibleName(f"Open {label}")
-        button.setToolTip(f"{label} ({shortcut})")
-        button.clicked.connect(
-            lambda _checked, value=section: self.section_selected.emit(value.value)
+        action = QAction(label, self)
+        action.setCheckable(True)
+        action.setShortcut(QKeySequence(shortcut))
+        action.setToolTip(f"{label} ({shortcut})")
+        action.triggered.connect(
+            lambda _checked=False, value=section: self.section_selected.emit(
+                value.value
+            )
         )
-        self.group.addButton(button)
-        self.buttons[section] = button
-        layout.addWidget(button)
-        QShortcut(
-            QKeySequence(shortcut),
-            self,
-            lambda value=section: self.section_selected.emit(value.value),
-        )
+        self.navigation_actions[section] = action
+        self.addAction(action)
+        self.navigation_menu.addAction(action)
 
 
 class MainWindow(QMainWindow):
@@ -219,23 +241,23 @@ class MainWindow(QMainWindow):
         self._settings = settings or QSettings("BlueBubbles", "BlueBubbles")
         self._close_to_tray = close_to_tray
         self.setWindowTitle(application_name)
-        self.setMinimumSize(960, 640)
+        self.setMinimumSize(900, 560)
         self.resize(1280, 800)
         root = QWidget()
         root_layout = QVBoxLayout(root)
         root_layout.setContentsMargins(0, 0, 0, 0)
+        self.header_bar = NavigationHeader(view_model)
         self.connection_banner = QLabel("Starting…")
         self.connection_banner.setObjectName("connection_banner")
         self.connection_banner.setAccessibleName("Connection status")
         body = QHBoxLayout()
-        self.sidebar = NavigationSidebar(view_model)
         self.conversations = ConversationPanel(view_model)
-        self.conversations.setMinimumWidth(280)
-        self.conversations.setMaximumWidth(360)
+        self.conversations.setMinimumWidth(260)
+        self.conversations.setMaximumWidth(340)
         self.content = QStackedWidget()
-        body.addWidget(self.sidebar)
-        body.addWidget(self.conversations)
-        body.addWidget(self.content, 1)
+        body.addWidget(self.content, 4)
+        body.addWidget(self.conversations, 1)
+        root_layout.addWidget(self.header_bar)
         root_layout.addWidget(self.connection_banner)
         root_layout.addLayout(body, 1)
         self.setCentralWidget(root)
@@ -292,7 +314,9 @@ class MainWindow(QMainWindow):
             "Run diagnostics",
         )
         self._build_administration_pages()
-        self.sidebar.section_selected.connect(self._navigate_value)
+        self.header_bar.section_selected.connect(self._navigate_value)
+        self.header_bar.exit_requested.connect(self._exit_application)
+        self.header_bar.help_requested.connect(self._show_help)
         self.conversations.conversation_selected.connect(self._select_conversation)
         view_model.navigation_changed.connect(self._navigation_changed)
         view_model.connection_changed.connect(self._connection_changed)
@@ -387,7 +411,7 @@ class MainWindow(QMainWindow):
         if page is None:
             return
         self.content.setCurrentWidget(page)
-        self.sidebar.select(section)
+        self.header_bar.select(section)
         self.conversations.setVisible(section is NavigationSection.CHATS)
         if section is NavigationSection.TRANSFERS:
             self._view_model.load_transfers()
@@ -407,7 +431,21 @@ class MainWindow(QMainWindow):
         self.chat_page.header.setText(
             conversation.title if conversation else "Conversation"
         )
+        self.header_bar.set_chat_context(conversation.title if conversation else "user")
         self._view_model.select_conversation(conversation_id)
+
+    def _show_help(self) -> None:
+        QMessageBox.information(
+            self,
+            "BlueBubbles help",
+            "Choose a user on the right, type a message at the bottom, and use "
+            "the Chat menu for contacts, groups, transfers, settings and support.",
+        )
+
+    def _exit_application(self) -> None:
+        self._close_to_tray = False
+        self.close()
+        self._application.quit()
 
     def _open_search_result(self, value: str) -> None:
         self._view_model.navigate(NavigationSection.CHATS)

@@ -39,6 +39,17 @@ class ThemeName(StrEnum):
     HIGH_CONTRAST = "high_contrast"
 
 
+class ConversationSort(StrEnum):
+    """Define every user-list ordering exposed by the desktop shell."""
+
+    MOST_RECENT = "most_recent"
+    FORENAME = "forename"
+    SURNAME = "surname"
+    FREQUENCY = "frequency"
+    DATE_ADDED = "date_added"
+    NEW_MESSAGES = "new_messages"
+
+
 class UiMessageState(StrEnum):
     """Define colour-independent message delivery labels."""
 
@@ -63,6 +74,8 @@ class ConversationListItem:
     is_muted: bool = False
     is_pinned: bool = False
     composer_enabled: bool = True
+    message_frequency: int = 0
+    date_added_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)

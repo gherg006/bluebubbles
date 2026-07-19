@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 from PySide6.QtCore import QObject, Signal
@@ -14,6 +14,7 @@ from bluebubbles.client.domain.synchronisation import ConnectivityState
 from bluebubbles.client.ui.backend import UiBackend
 from bluebubbles.client.ui.models import (
     ConversationListItem,
+    ConversationSort,
     MessageListItem,
     NavigationSection,
     SearchListItem,
@@ -110,6 +111,9 @@ class DesktopViewModel(QObject):
         self.administrative_sections = administrative_sections
         self.conversations: list[ConversationListItem] = []
         self.filtered_conversations: list[ConversationListItem] = []
+        self.conversation_sort = ConversationSort.MOST_RECENT
+        self.conversation_sort_descending = True
+        self._conversation_query = ""
         self.messages: list[MessageListItem] = []
         self.transfers: list[TransferListItem] = []
         self.search_results: list[SearchListItem] = []
@@ -154,15 +158,75 @@ class DesktopViewModel(QObject):
 
     def filter_conversations(self, query: str) -> None:
         """Apply local title/preview filtering without storage or network work."""
-        value = query.strip().casefold()
-        self.filtered_conversations = [
+        self._conversation_query = query.strip().casefold()
+        self._refresh_conversation_projection()
+
+    def set_conversation_sort(
+        self,
+        ordering: ConversationSort,
+        *,
+        descending: bool | None = None,
+    ) -> None:
+        """Apply a deterministic local ordering without network or storage work."""
+        self.conversation_sort = ordering
+        self.conversation_sort_descending = (
+            ordering
+            in {
+                ConversationSort.MOST_RECENT,
+                ConversationSort.FREQUENCY,
+                ConversationSort.DATE_ADDED,
+                ConversationSort.NEW_MESSAGES,
+            }
+            if descending is None
+            else descending
+        )
+        self._refresh_conversation_projection()
+
+    def toggle_conversation_sort_direction(self) -> None:
+        """Reverse the selected ordering while preserving its stable tie-breaks."""
+        self.conversation_sort_descending = not self.conversation_sort_descending
+        self._refresh_conversation_projection()
+
+    def _refresh_conversation_projection(self) -> None:
+        value = self._conversation_query
+        visible = [
             item
             for item in self.conversations
             if not value
             or value in item.title.casefold()
             or value in item.preview.casefold()
         ]
+        self.filtered_conversations = sorted(
+            visible,
+            key=self._conversation_sort_key,
+            reverse=self.conversation_sort_descending,
+        )
         self.conversations_changed.emit()
+
+    def _conversation_sort_key(self, item: ConversationListItem) -> Any:
+        title = item.title.casefold().strip()
+        words = title.split()
+        if self.conversation_sort is ConversationSort.MOST_RECENT:
+            return (
+                item.last_activity_at,
+                title,
+            )
+        if self.conversation_sort is ConversationSort.FORENAME:
+            return (words[0] if words else "", title)
+        if self.conversation_sort is ConversationSort.SURNAME:
+            return (words[-1] if words else "", title)
+        if self.conversation_sort is ConversationSort.FREQUENCY:
+            return (
+                item.message_frequency,
+                item.last_activity_at,
+                title,
+            )
+        if self.conversation_sort is ConversationSort.DATE_ADDED:
+            return (
+                item.date_added_at or item.last_activity_at,
+                title,
+            )
+        return (item.unread_count, item.last_activity_at, title)
 
     def select_conversation(self, conversation_id: UUID) -> None:
         """Load one conversation's messages and encrypted draft through services."""
@@ -416,8 +480,7 @@ class DesktopViewModel(QObject):
 
     def _conversations_loaded(self, result: object) -> None:
         self.conversations = list(cast(list[ConversationListItem], result))
-        self.filtered_conversations = list(self.conversations)
-        self.conversations_changed.emit()
+        self._refresh_conversation_projection()
         self.page_state_changed.emit("chats", "ready" if result else "empty")
 
     def _conversation_loaded(self, result: object) -> None:

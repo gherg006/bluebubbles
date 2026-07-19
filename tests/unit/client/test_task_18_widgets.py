@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from bluebubbles.client.ui.models import (
     ConversationListItem,
+    ConversationSort,
     MessageListItem,
     NavigationSection,
     SearchListItem,
@@ -85,14 +86,32 @@ def test_main_window_navigation_empty_states_and_admin_visibility(
     )
     settings = QSettings(str(tmp_path / "ui.ini"), QSettings.Format.IniFormat)
     window = MainWindow(app, view_model, settings=settings, close_to_tray=False)
-    assert window.minimumWidth() == 960
-    assert NavigationSection.ADMINISTRATION in window.sidebar.buttons
-    window.sidebar.buttons[NavigationSection.SEARCH].click()
+    window.show()
+    app.processEvents()
+    assert window.minimumWidth() == 900
+    assert window.header_bar.brand.text() == "[logo] BlueBubbles"
+    assert NavigationSection.ADMINISTRATION in window.header_bar.navigation_actions
+    window.header_bar.navigation_actions[NavigationSection.SEARCH].trigger()
     assert view_model.navigation is NavigationSection.SEARCH
     assert not window.conversations.isVisible()
     view_model.navigate(NavigationSection.CHATS)
     assert window.conversations.list_widget.objectName() == "conversation_list"
+    assert window.conversations.sort_selector.count() == 6
+    assert window.conversations.sort_selector.itemText(0) == "Most Recent"
     assert window.chat_page.send_button.objectName() == "message_send_button"
+    assert window.chat_page.attachment_button.text() == "+"
+    assert window.chat_page.composer.maximumHeight() == 54
+    assert window.content.geometry().left() < window.conversations.geometry().left()
+    assert window.header_bar.geometry().top() < window.content.geometry().top()
+    window.conversations.sort_selector.setCurrentIndex(2)
+    assert view_model.conversation_sort is ConversationSort.SURNAME
+
+    def sort_descending() -> bool:
+        return view_model.conversation_sort_descending
+
+    assert sort_descending() is False
+    window.conversations.direction_button.click()
+    assert sort_descending() is True
     window.hide()
 
 

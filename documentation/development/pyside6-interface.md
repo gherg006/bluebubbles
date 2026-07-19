@@ -11,10 +11,18 @@ clear offline/unconfigured states for independent UI startup and testing.
 
 The client starts at an accessible login window with server, username and password
 validation, password clearing, inline errors and duplicate-submit prevention.
-Successful backend authentication replaces it with a resizable three-column main
-window: labelled navigation, a filterable conversation panel and the active content
-page. Geometry, maximised state and navigation are restored only onto a valid
-screen.
+Successful backend authentication replaces it with a resizable shell based on the
+approved wireframe: a branded top bar with explicit Exit, Help and current-page
+navigation; a large blue chat workspace on the left; and a narrow searchable user
+list on the right. The navigation menu retains every non-chat and authorised
+administrative page without consuming permanent horizontal space. Geometry,
+maximised state and navigation are restored only onto a valid screen.
+
+The user list supports Most Recent, Alphabetical (Forename), Alphabetical
+(Surname), Frequency, Date Added and New Messages orderings, plus an explicit
+ascending/descending toggle. Filtering and ordering are local deterministic
+projections: they never trigger storage or network work. Empty lists, single-word
+names, missing date-added metadata and stable tie-breaks are tested.
 
 The shell includes chats, contacts, groups, transfers, search, announcements,
 settings, sessions and diagnostics. Authorised administration exposes dashboard,
@@ -49,9 +57,10 @@ notifications, logout and exit actions. Notifications honour enabled, paused and
 preview privacy state.
 
 `tests/unit/client/test_task_18_viewmodels.py` verifies validation, navigation,
-filtering, drafts, optimistic pending/stored/failed state, reply/edit, attachment
-selection, search, settings, cache confirmation and sessions. Offscreen widget
-tests verify stable identifiers, accessibility text, page navigation, message
-wrapping, transfer progress, themes and confirmations. Live screen-reader,
+filtering/sorting, drafts, optimistic pending/stored/failed state, reply/edit,
+attachment selection, search, settings, cache confirmation and sessions. Offscreen
+widget tests verify stable identifiers, layout ordering, all sort controls,
+accessibility text, page navigation, message wrapping, transfer progress, themes
+and confirmations. Live screen-reader,
 multi-monitor scaling and Windows notification appearance remain manual platform
 acceptance checks rather than claims made by headless tests.

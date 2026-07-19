@@ -10,16 +10,26 @@ from bluebubbles.client.ui.models import ThemeName
 
 _THEMES: dict[ThemeName, str] = {
     ThemeName.LIGHT: """
-        QWidget { background: #f6f7f9; color: #172033; font-size: 10pt; }
-        QFrame#navigation_sidebar { background: #183153; }
-        QFrame#navigation_sidebar QPushButton { color: white; border: 0; padding: 9px; }
-        QFrame#navigation_sidebar QPushButton:checked { background: #2f6feb; }
-        QLineEdit, QTextEdit, QListWidget, QComboBox, QDoubleSpinBox {
-            background: white; border: 1px solid #aeb8c7; border-radius: 5px; padding: 6px;
+        QWidget { background: #dceafb; color: #172033; font-size: 10pt; }
+        QFrame#navigation_header { background: #cfe2f8; border: 1px solid #5798bd; }
+        QLabel#application_brand, QLabel[heading="true"] { font-weight: 700; }
+        QPushButton#exit_button { background: #ffe1e1; border-color: #c87a7a; }
+        QPushButton#help_button, QPushButton#navigation_menu_button {
+            background: #b9dff0; border-color: #5798bd; font-weight: 600;
         }
-        QPushButton { background: #e5e9f0; border: 1px solid #aeb8c7; border-radius: 5px; padding: 6px 10px; }
+        QFrame#conversation_panel { background: #bfe2f3; border: 1px solid #5798bd; }
+        QWidget#chat_workspace { background: #b7cef2; }
+        QListWidget#message_list { background: #b7cef2; border: 1px solid #6b819e; }
+        QListWidget#conversation_list { background: #f8fbff; border: 1px solid #6b819e; }
+        QListWidget#conversation_list::item { padding: 8px; border-bottom: 1px solid #aeb8c7; }
+        QListWidget#conversation_list::item:selected { background: #a9d9ef; color: #172033; }
+        QLineEdit, QTextEdit, QListWidget, QComboBox, QDoubleSpinBox {
+            background: white; border: 1px solid #6b819e; border-radius: 2px; padding: 6px;
+        }
+        QPushButton { background: #dce9f5; border: 1px solid #6b819e; border-radius: 2px; padding: 6px 10px; }
         QPushButton#primary_button, QPushButton[primary="true"] { background: #1769e0; color: white; border-color: #1769e0; }
         QPushButton#destructive_button { background: #b42318; color: white; border-color: #b42318; }
+        QPushButton#message_attachment_button { font-size: 16pt; font-weight: 700; min-width: 28px; }
         QLabel#connection_banner { background: #fff3cd; color: #5f4700; padding: 7px; }
         QLabel#error_banner { background: #fde7e7; color: #7a1712; padding: 7px; }
         QFrame#message_own { background: #d9eaff; border-radius: 8px; }
@@ -27,9 +37,10 @@ _THEMES: dict[ThemeName, str] = {
     """,
     ThemeName.DARK: """
         QWidget { background: #151a22; color: #edf2f7; font-size: 10pt; }
-        QFrame#navigation_sidebar { background: #0b1017; }
-        QFrame#navigation_sidebar QPushButton { color: #edf2f7; border: 0; padding: 9px; }
-        QFrame#navigation_sidebar QPushButton:checked { background: #315cba; }
+        QFrame#navigation_header { background: #0b1017; border: 1px solid #66758a; }
+        QFrame#conversation_panel { background: #182434; border: 1px solid #66758a; }
+        QWidget#chat_workspace, QListWidget#message_list { background: #1b2b43; }
+        QLabel#application_brand, QLabel[heading="true"] { font-weight: 700; }
         QLineEdit, QTextEdit, QListWidget, QComboBox, QDoubleSpinBox {
             background: #202834; border: 1px solid #66758a; border-radius: 5px; padding: 6px;
         }
@@ -43,9 +54,9 @@ _THEMES: dict[ThemeName, str] = {
     """,
     ThemeName.HIGH_CONTRAST: """
         QWidget { background: black; color: white; font-size: 11pt; }
-        QFrame#navigation_sidebar { background: black; border-right: 2px solid white; }
-        QFrame#navigation_sidebar QPushButton { color: white; border: 2px solid white; padding: 8px; }
-        QFrame#navigation_sidebar QPushButton:checked { background: #ffff00; color: black; }
+        QFrame#navigation_header, QFrame#conversation_panel { background: black; border: 2px solid white; }
+        QWidget#chat_workspace, QListWidget#message_list { background: black; }
+        QLabel#application_brand, QLabel[heading="true"] { font-weight: 700; }
         QLineEdit, QTextEdit, QListWidget, QComboBox, QDoubleSpinBox {
             background: black; color: white; border: 2px solid white; padding: 6px;
         }

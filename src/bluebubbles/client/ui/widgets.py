@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from bluebubbles.client.ui.models import (
+    ConversationSort,
     MessageListItem,
     ThemeName,
     UiMessageState,
@@ -89,18 +90,42 @@ class StatePage(QWidget):
 
 
 class ConversationPanel(QFrame):
-    """Display filterable bounded conversation summaries in the middle column."""
+    """Display the searchable, sortable user list from the reference layout."""
 
     conversation_selected = Signal(str)
 
     def __init__(self, view_model: DesktopViewModel) -> None:
         super().__init__()
         self._view_model = view_model
+        self.setObjectName("conversation_panel")
         layout = QVBoxLayout(self)
-        header = QLabel("Chats")
+        layout.setContentsMargins(8, 8, 8, 8)
+        header = QLabel("Users")
+        header.setObjectName("conversation_panel_heading")
+        header.setProperty("heading", True)
         self.filter_input = QLineEdit()
-        self.filter_input.setPlaceholderText("Find a conversation")
-        self.filter_input.setAccessibleName("Filter conversations")
+        self.filter_input.setObjectName("conversation_search_input")
+        self.filter_input.setPlaceholderText("Search")
+        self.filter_input.setAccessibleName("Search users and conversations")
+        filter_row = QHBoxLayout()
+        self.sort_selector = QComboBox()
+        self.sort_selector.setObjectName("conversation_sort_selector")
+        self.sort_selector.setAccessibleName("Sort users")
+        for label, ordering in (
+            ("Most Recent", ConversationSort.MOST_RECENT),
+            ("Alphabetical (Forename)", ConversationSort.FORENAME),
+            ("Alphabetical (Surname)", ConversationSort.SURNAME),
+            ("Frequency", ConversationSort.FREQUENCY),
+            ("Date Added", ConversationSort.DATE_ADDED),
+            ("New Messages", ConversationSort.NEW_MESSAGES),
+        ):
+            self.sort_selector.addItem(label, ordering.value)
+        self.direction_button = QPushButton("↓ Desc")
+        self.direction_button.setObjectName("conversation_sort_direction")
+        self.direction_button.setAccessibleName("Sort descending")
+        self.direction_button.setToolTip("Reverse the user-list order")
+        filter_row.addWidget(self.sort_selector, 1)
+        filter_row.addWidget(self.direction_button)
         self.list_widget = QListWidget()
         self.list_widget.setObjectName("conversation_list")
         self.list_widget.setAccessibleName("Conversation list")
@@ -108,9 +133,12 @@ class ConversationPanel(QFrame):
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(header)
         layout.addWidget(self.filter_input)
+        layout.addLayout(filter_row)
         layout.addWidget(self.list_widget, 1)
         layout.addWidget(self.empty_label)
         self.filter_input.textChanged.connect(view_model.filter_conversations)
+        self.sort_selector.currentIndexChanged.connect(self._sort_changed)
+        self.direction_button.clicked.connect(self._toggle_direction)
         self.list_widget.itemActivated.connect(self._select)
         self.list_widget.itemClicked.connect(self._select)
         view_model.conversations_changed.connect(self.reload)
@@ -120,12 +148,13 @@ class ConversationPanel(QFrame):
         self.list_widget.clear()
         for conversation in self._view_model.filtered_conversations:
             unread = (
-                f" — {conversation.unread_count} unread"
+                f" · {conversation.unread_count} new"
                 if conversation.unread_count
                 else ""
             )
+            pinned = "Pinned · " if conversation.is_pinned else ""
             item = QListWidgetItem(
-                f"{conversation.title}{unread}\n"
+                f"{pinned}{conversation.title}{unread}\n"
                 f"{conversation.preview or 'No messages yet'}"
             )
             item.setData(Qt.ItemDataRole.UserRole, str(conversation.conversation_id))
@@ -136,6 +165,22 @@ class ConversationPanel(QFrame):
         has_items = self.list_widget.count() > 0
         self.list_widget.setVisible(has_items)
         self.empty_label.setVisible(not has_items)
+
+    def _sort_changed(self, index: int) -> None:
+        ordering = ConversationSort(str(self.sort_selector.itemData(index)))
+        self._view_model.set_conversation_sort(ordering)
+        self._sync_direction_label()
+
+    def _toggle_direction(self) -> None:
+        self._view_model.toggle_conversation_sort_direction()
+        self._sync_direction_label()
+
+    def _sync_direction_label(self) -> None:
+        descending = self._view_model.conversation_sort_descending
+        self.direction_button.setText("↓ Desc" if descending else "↑ Asc")
+        self.direction_button.setAccessibleName(
+            "Sort descending" if descending else "Sort ascending"
+        )
 
     def _select(self, item: QListWidgetItem) -> None:
         conversation_id = str(item.data(Qt.ItemDataRole.UserRole))
@@ -222,9 +267,12 @@ class ChatPage(QWidget):
 
     def __init__(self, view_model: DesktopViewModel) -> None:
         super().__init__()
+        self.setObjectName("chat_workspace")
         self._view_model = view_model
         layout = QVBoxLayout(self)
         self.header = QLabel("Select a conversation")
+        self.header.setObjectName("chat_heading")
+        self.header.setProperty("heading", True)
         self.state_label = QLabel("Choose a chat from the conversation list.")
         self.message_list = QListWidget()
         self.message_list.setObjectName("message_list")
@@ -235,20 +283,22 @@ class ChatPage(QWidget):
         self.attachment_label = QLabel("")
         self.attachment_label.setVisible(False)
         composer_row = QHBoxLayout()
-        self.attachment_button = QPushButton("Attach")
+        self.attachment_button = QPushButton("+")
+        self.attachment_button.setObjectName("message_attachment_button")
         self.attachment_button.setAccessibleName("Choose attachments")
         self.composer = QTextEdit()
         self.composer.setObjectName("message_composer_input")
         self.composer.setAccessibleName("Message composer")
         self.composer.setPlaceholderText("Write a message")
-        self.composer.setMaximumHeight(140)
+        self.composer.setMinimumHeight(42)
+        self.composer.setMaximumHeight(54)
         self.send_button = QPushButton("Send")
         self.send_button.setObjectName("message_send_button")
         self.send_button.setProperty("primary", True)
         self.send_button.setAccessibleName("Send message")
-        composer_row.addWidget(self.attachment_button)
         composer_row.addWidget(self.composer, 1)
         composer_row.addWidget(self.send_button)
+        composer_row.addWidget(self.attachment_button)
         layout.addWidget(self.header)
         layout.addWidget(self.state_label)
         layout.addWidget(self.message_list, 1)

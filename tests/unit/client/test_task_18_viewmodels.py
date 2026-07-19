@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable, Coroutine, Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -14,6 +14,7 @@ import pytest
 from bluebubbles.client.ui.backend import CallbackUiBackend, UnavailableUiBackend
 from bluebubbles.client.ui.models import (
     ConversationListItem,
+    ConversationSort,
     MessageListItem,
     NavigationSection,
     SearchListItem,
@@ -163,6 +164,59 @@ def test_navigation_filter_and_administration_visibility() -> None:
         administrative_sections=frozenset({NavigationSection.ADMINISTRATION}),
     )
     authorised.navigate(NavigationSection.ADMINISTRATION)
+
+
+def test_conversation_sort_modes_direction_and_filter_are_deterministic() -> None:
+    backend = FakeBackend()
+    view_model = DesktopViewModel(backend, ImmediateTaskRunner())
+    now = datetime.now(UTC)
+    earlier = now - timedelta(days=365)
+    view_model.conversations = [
+        ConversationListItem(
+            uuid4(),
+            "Zoe Adams",
+            "alpha",
+            earlier,
+            unread_count=0,
+            message_frequency=9,
+            date_added_at=now,
+        ),
+        ConversationListItem(
+            uuid4(),
+            "Alex Young",
+            "beta",
+            now,
+            unread_count=4,
+            message_frequency=1,
+            date_added_at=earlier,
+        ),
+        ConversationListItem(uuid4(), "Morgan", "gamma", now, unread_count=2),
+    ]
+
+    expectations = {
+        ConversationSort.MOST_RECENT: "Morgan",
+        ConversationSort.FORENAME: "Alex Young",
+        ConversationSort.SURNAME: "Zoe Adams",
+        ConversationSort.FREQUENCY: "Zoe Adams",
+        ConversationSort.DATE_ADDED: "Zoe Adams",
+        ConversationSort.NEW_MESSAGES: "Alex Young",
+    }
+    for ordering, expected_first in expectations.items():
+        view_model.set_conversation_sort(ordering)
+        assert view_model.filtered_conversations[0].title == expected_first
+
+    view_model.toggle_conversation_sort_direction()
+    assert view_model.filtered_conversations[0].title == "Zoe Adams"
+    view_model.filter_conversations("GAMMA")
+    assert [item.title for item in view_model.filtered_conversations] == ["Morgan"]
+    view_model.filter_conversations("no match")
+    assert view_model.filtered_conversations == []
+    view_model.conversations.append(
+        ConversationListItem(uuid4(), "", "blank title", earlier)
+    )
+    view_model.filter_conversations("")
+    view_model.set_conversation_sort(ConversationSort.SURNAME)
+    assert view_model.filtered_conversations[0].title == ""
 
 
 def test_draft_reply_edit_pending_stored_and_failed_message(tmp_path: Path) -> None:
