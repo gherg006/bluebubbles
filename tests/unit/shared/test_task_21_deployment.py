@@ -388,6 +388,20 @@ def test_server_lifecycle_scripts_install_and_check_locked_dependencies() -> Non
     assert "/opt/bluebubbles/current.new" in install
 
 
+def test_quality_workflow_uses_node24_actions_and_real_postgresql_migrations() -> None:
+    workflow = (PROJECT_ROOT / ".github" / "workflows" / "quality.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert workflow.count("actions/checkout@v5") == 2
+    assert workflow.count("actions/setup-python@v6") == 2
+    assert workflow.count('python-version: "3.13.5"') == 2
+    assert "actions/checkout@v4" not in workflow
+    assert "actions/setup-python@v5" not in workflow
+    assert "alembic upgrade head" in workflow
+    assert "BLUEBUBBLES_TEST_DATABASE_URL" in workflow
+
+
 def test_checked_in_deployment_templates_match_real_routes_and_exposure_policy() -> (
     None
 ):

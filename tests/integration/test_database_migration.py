@@ -25,4 +25,6 @@ def test_initial_migration_renders_complete_postgresql_sql() -> None:
     assert "CREATE TRIGGER audit_events_no_update_delete" in sql
     assert "INSERT INTO roles" in sql
     assert "SuperAdministrator" in sql
+    assert "ADD COLUMN IF NOT EXISTS nonce BYTEA" in sql
+    assert "ADD COLUMN IF NOT EXISTS authentication_tag BYTEA" in sql
     assert "0001_initial_schema" in sql

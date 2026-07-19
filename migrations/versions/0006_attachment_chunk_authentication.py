@@ -6,7 +6,6 @@ Revises: 0005_text_with_attachment
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0006_attachment_chunk_auth"
@@ -17,12 +16,16 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Store nonce and GCM tag alongside recoverable temporary chunk state."""
-    op.add_column(
-        "upload_session_chunks", sa.Column("nonce", sa.LargeBinary(), nullable=True)
+    # The initial revision deliberately renders the current ORM metadata so a
+    # new installation already has these columns. Existing pre-Task-15
+    # databases do not. PostgreSQL's IF NOT EXISTS makes this revision safe for
+    # both paths instead of failing a fresh CI migration with DuplicateColumn.
+    op.execute(
+        "ALTER TABLE upload_session_chunks " "ADD COLUMN IF NOT EXISTS nonce BYTEA"
     )
-    op.add_column(
-        "upload_session_chunks",
-        sa.Column("authentication_tag", sa.LargeBinary(), nullable=True),
+    op.execute(
+        "ALTER TABLE upload_session_chunks "
+        "ADD COLUMN IF NOT EXISTS authentication_tag BYTEA"
     )
     op.execute(
         "DELETE FROM upload_session_chunks WHERE nonce IS NULL "
