@@ -9,8 +9,9 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
-from scripts.deployment.backup import BackupPlan
+from scripts.deployment.backup import BackupPlan, BackupRunner
 from scripts.deployment.build_release import _normalise_tar_info
+from scripts.deployment.render_nginx import render_nginx
 from scripts.packaging.build_client import ClientBuilder, ClientBuildPlan
 
 from bluebubbles.deployment import (
@@ -187,6 +188,22 @@ def test_template_renderer_requires_exact_placeholders_and_safe_values() -> None
         DeploymentTemplateRenderer("${unknown}", required_values=frozenset())
 
 
+def test_nginx_renderer_preserves_native_variables_and_refuses_overwrite(
+    tmp_path: Path,
+) -> None:
+    template = PROJECT_ROOT / "deployment/templates/bluebubbles.nginx.conf.template"
+    output = tmp_path / "bluebubbles.conf"
+
+    render_nginx(template, output, "chat.internal.example")
+    rendered = output.read_text(encoding="utf-8")
+
+    assert "server_name chat.internal.example;" in rendered
+    assert "$host$request_uri" in rendered
+    assert "$http_upgrade" in rendered
+    with pytest.raises(FileExistsError, match="refusing to overwrite"):
+        render_nginx(template, output, "chat.internal.example")
+
+
 def test_backup_plan_rejects_invalid_database_root_overlap_and_missing_sources(
     tmp_path: Path,
 ) -> None:
@@ -202,6 +219,7 @@ def test_backup_plan_rejects_invalid_database_root_overlap_and_missing_sources(
         tmp_path / "state" / "status.json",
     )
     assert valid.database == "bluebubbles_1"
+    assert valid.database_user == "bluebubbles_backup"
     with pytest.raises(ValueError, match="PostgreSQL identifier"):
         BackupPlan(
             tmp_path / "backups",
@@ -226,6 +244,57 @@ def test_backup_plan_rejects_invalid_database_root_overlap_and_missing_sources(
             configuration,
             tmp_path / "status",
         )
+    with pytest.raises(ValueError, match="database user"):
+        BackupPlan(
+            tmp_path / "backups",
+            "database",
+            attachments,
+            configuration,
+            tmp_path / "status",
+            database_user="backup;drop",
+        )
+    with pytest.raises(ValueError, match="database host"):
+        BackupPlan(
+            tmp_path / "backups",
+            "database",
+            attachments,
+            configuration,
+            tmp_path / "status",
+            database_host="host/name",
+        )
+
+
+def test_backup_uses_restricted_identity_and_publishes_verified_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    attachments = tmp_path / "attachments"
+    configuration = tmp_path / "configuration"
+    attachments.mkdir()
+    configuration.mkdir()
+    (attachments / "ciphertext").write_bytes(b"encrypted")
+    (configuration / "production.yaml").write_text("safe: true\n", encoding="utf-8")
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run(command: tuple[str, ...], **_kwargs: object) -> None:
+        calls.append(command)
+        Path(command[command.index("--file") + 1]).write_bytes(b"database-dump")
+
+    monkeypatch.setattr("scripts.deployment.backup.subprocess.run", fake_run)
+    status = tmp_path / "state" / "status.json"
+    plan = BackupPlan(
+        tmp_path / "backups",
+        "bluebubbles",
+        attachments,
+        configuration,
+        status,
+    )
+
+    manifest = BackupRunner(plan).run(stop_service=False)
+
+    assert manifest.verification.value == "success"
+    assert calls and "--host" in calls[0] and "127.0.0.1" in calls[0]
+    assert "--username" in calls[0] and "bluebubbles_backup" in calls[0]
+    assert json.loads(status.read_text(encoding="utf-8"))["successful"] is True
 
 
 def test_client_build_plan_uses_authoritative_version_and_non_shell_command() -> None:
@@ -293,6 +362,13 @@ def test_release_tar_metadata_is_reproducible_and_scripts_are_executable() -> No
     assert directory.mode == 0o755
 
 
+def test_release_builder_excludes_self_mutating_candidate_assessment() -> None:
+    source = (PROJECT_ROOT / "scripts/deployment/build_release.py").read_text(
+        encoding="utf-8"
+    )
+    assert '"release-candidate-assessment-*.json"' in source
+
+
 def test_server_lifecycle_scripts_install_and_check_locked_dependencies() -> None:
     install = (PROJECT_ROOT / "scripts/deployment/install_server.sh").read_text(
         encoding="utf-8"
@@ -321,6 +397,12 @@ def test_checked_in_deployment_templates_match_real_routes_and_exposure_policy()
     service = (PROJECT_ROOT / "deployment/templates/bluebubbles.service").read_text(
         encoding="utf-8"
     )
+    backup_service = (
+        PROJECT_ROOT / "deployment/templates/bluebubbles-backup.service"
+    ).read_text(encoding="utf-8")
+    environment = (PROJECT_ROOT / "deployment/templates/environment").read_text(
+        encoding="utf-8"
+    )
     installer = (PROJECT_ROOT / "packaging/windows/BlueBubbles.iss").read_text(
         encoding="utf-8"
     )
@@ -330,5 +412,9 @@ def test_checked_in_deployment_templates_match_real_routes_and_exposure_policy()
     assert "RequiresMountsFor=/var/lib/bluebubbles/attachments" in service
     assert "NoNewPrivileges=true" in service
     assert "--config-directory /etc/bluebubbles" in service
+    assert "PGPASSFILE=/etc/bluebubbles/secrets/backup.pgpass" in backup_service
+    assert "--database-user bluebubbles_backup" in backup_service
+    assert "ReadWritePaths=/var/backups/bluebubbles" in backup_service
+    assert "# BLUEBUBBLES_LDAP_BIND_PASSWORD_FILE=" in environment
     assert "%LOCALAPPDATA%" not in installer
     assert "deliberately preserved" in installer

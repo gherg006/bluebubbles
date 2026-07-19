@@ -30,7 +30,10 @@ from bluebubbles.server.configuration.validation import (
     validate_setting_relationships,
     validate_tls_files,
 )
-from bluebubbles.shared.configuration import ConfigurationError
+from bluebubbles.shared.configuration import (
+    ConfigurationError,
+    secret_permissions_are_unsafe,
+)
 
 
 def _write(path: Path, value: str) -> Path:
@@ -95,6 +98,16 @@ def test_secret_file_must_exist_and_not_be_empty(tmp_path: Path) -> None:
         ConfigurationLoader(
             tmp_path, {"BLUEBUBBLES_TOKEN_SECRET_FILE": str(empty)}
         ).load_server_settings()
+
+
+@pytest.mark.parametrize("mode", [0o600, 0o640])
+def test_secret_permissions_accept_owner_and_optional_group_read(mode: int) -> None:
+    assert not secret_permissions_are_unsafe(mode)
+
+
+@pytest.mark.parametrize("mode", [0o604, 0o644, 0o660, 0o666, 0o750])
+def test_secret_permissions_reject_other_or_group_mutation(mode: int) -> None:
+    assert secret_permissions_are_unsafe(mode)
 
 
 @pytest.mark.parametrize(

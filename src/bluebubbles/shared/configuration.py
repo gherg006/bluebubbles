@@ -134,7 +134,14 @@ def _validate_secret_file(path: Path, variable: str) -> None:
         raise ConfigurationError(
             f"Secret file for {variable} does not exist or is not a file"
         )
-    if os.name != "nt" and stat.S_IMODE(path.stat().st_mode) & 0o077:
+    if os.name != "nt" and secret_permissions_are_unsafe(
+        stat.S_IMODE(path.stat().st_mode)
+    ):
         raise ConfigurationError(
-            f"Secret file for {variable} must not be accessible by group or others"
+            f"Secret file for {variable} must be owner-only or group-readable"
         )
+
+
+def secret_permissions_are_unsafe(mode: int) -> bool:
+    """Allow owner access and optional group read, but no other permission bits."""
+    return bool(mode & 0o037)

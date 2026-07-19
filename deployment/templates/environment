@@ -1,5 +1,6 @@
 BLUEBUBBLES_ENVIRONMENT=production
 BLUEBUBBLES_DATABASE_URL_FILE=/etc/bluebubbles/secrets/database_url
 BLUEBUBBLES_REDIS_URL_FILE=/etc/bluebubbles/secrets/redis_url
-BLUEBUBBLES_LDAP_BIND_PASSWORD_FILE=/etc/bluebubbles/secrets/ldap_bind_password
+# Uncomment only after creating this file when the directory provider is enabled:
+# BLUEBUBBLES_LDAP_BIND_PASSWORD_FILE=/etc/bluebubbles/secrets/ldap_bind_password
 BLUEBUBBLES_TOKEN_SECRET_FILE=/etc/bluebubbles/secrets/token_signing_key

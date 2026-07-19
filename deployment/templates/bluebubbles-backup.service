@@ -7,10 +7,13 @@ Type=oneshot
 User=root
 Group=root
 WorkingDirectory=/opt/bluebubbles/current
-ExecStart=/opt/bluebubbles/shared/venv/bin/python /opt/bluebubbles/current/scripts/deployment/backup.py --output-root /var/backups/bluebubbles --database bluebubbles --attachments /var/lib/bluebubbles/attachments --configuration /etc/bluebubbles --status-file /var/lib/bluebubbles/state/backup-status.json --stop-service
+Environment=PGPASSFILE=/etc/bluebubbles/secrets/backup.pgpass
+ExecStart=/opt/bluebubbles/shared/venv/bin/python /opt/bluebubbles/current/scripts/deployment/backup.py --output-root /var/backups/bluebubbles --database bluebubbles --database-host 127.0.0.1 --database-user bluebubbles_backup --attachments /var/lib/bluebubbles/attachments --configuration /etc/bluebubbles --status-file /var/lib/bluebubbles/state/backup-status.json --stop-service
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
 PrivateTmp=true
 NoNewPrivileges=true
 UMask=0077
+ProtectSystem=strict
+ReadWritePaths=/var/backups/bluebubbles /var/lib/bluebubbles/state

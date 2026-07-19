@@ -1,4 +1,78 @@
-# Task 21 and 22 defect log
+# Release defect log
+
+## RC-CLIENT-001 - packaged client has no production backend
+
+- Severity: Critical release blocker.
+- Reproduction: construct the client through `bluebubbles.client.main`; the
+  application supplies `UnavailableUiBackend` when tests have not injected a
+  backend, so login and every server-backed workflow fail by design.
+- Cause: Task 18 completed the presentation boundary, but no later stage composed
+  HTTP, WebSocket, local storage, key management, and offline services into a
+  production `UiBackend`.
+- Required correction: implement that composition without weakening TLS,
+  cryptographic, storage, or dependency-direction boundaries; then run the real
+  two-client journeys.
+- Status: OPEN. Version 0.1.0 is not eligible for release-candidate promotion.
+
+## RC-INSTALLER-001 - Windows Setup executable is unavailable
+
+- Severity: Critical release blocker.
+- Reproduction: the PyInstaller one-directory bundle exists, but no Inno Setup
+  compiler or signed/versioned Setup executable is present in this environment.
+- Required correction: build and smoke-test the installer on clean Windows 11,
+  verify install/uninstall and managed configuration, and retain its checksum.
+- Status: OPEN.
+
+## DEF-DEPLOY-002 - Nginx renderer consumed native variables
+
+- Severity: Critical deployment startup failure.
+- Reproduction: rendering the hostname through Python's generic template engine
+  also interpreted Nginx variables such as `$host`, `$request_uri`, and
+  `$http_upgrade` as application placeholders.
+- Correction: deployment templates now substitute only braced application
+  placeholders; the dedicated renderer validates hostnames and refuses overwrite.
+- Regression/retest: Task 21 tests preserve native Nginx variables and exercise
+  invalid hostnames and overwrite refusal.
+
+## DEF-CONFIG-001 - service-readable secret permissions were rejected
+
+- Severity: Critical deployment startup failure.
+- Reproduction: installation correctly creates root-owned secret files readable by
+  the `bluebubbles` service group (`0640`), while configuration validation accepted
+  only owner-readable `0600` files.
+- Correction: accept `0600` and group-readable `0640`, while still rejecting group
+  mutation and every permission for other users.
+- Regression/retest: exhaustive permission cases cover safe and unsafe modes.
+
+## DEF-CLIENTCFG-001 - installed client ignored managed configuration
+
+- Severity: High installation defect.
+- Reproduction: an administrator-created ProgramData YAML had no effect because
+  the loader always selected the bundled default unless code supplied a path.
+- Correction: support an explicit `BLUEBUBBLES_CLIENT_CONFIG_FILE`, then an
+  existing `%PROGRAMDATA%\BlueBubbles\client.yaml`, then the packaged default.
+- Regression/retest: precedence, absence, and explicit override cases are tested.
+
+## DEF-BACKUP-001 - scheduled backup could not authenticate or publish health
+
+- Severity: Critical recovery defect.
+- Reproduction: the root-owned systemd job invoked `pg_dump` without a database
+  identity/password source, then wrote status mode `0600`, unreadable by the
+  application monitoring service.
+- Correction: use the restricted `bluebubbles_backup` identity with a root-only
+  `PGPASSFILE`; publish status as root with the existing state-directory group and
+  mode `0640`; confine service writes to backup and state paths.
+- Regression/retest: backup command/identity, plan validation, status permissions
+  and service-template tests.
+
+## DEF-LDAPCFG-001 - disabled directory provider still required an LDAP secret
+
+- Severity: Critical local-authentication startup defect.
+- Reproduction: the installed environment always pointed at an LDAP password file;
+  strict secret loading rejected its absence even when LDAP was disabled.
+- Correction: ship the variable commented and require operators to enable it only
+  after creating the file for directory authentication.
+- Regression/retest: deployment template inspection and clean local-provider guide.
 
 ## DEF-DEPLOY-001 — reverse-proxy TLS contract mismatch
 

@@ -5,14 +5,18 @@ local-area networks. The project is being built incrementally from the Version
 1.0 engineering specification, with strict separation between shared protocol
 contracts, server code, and the PySide6 desktop client.
 
-The implementation now covers Tasks 1-22: shared contracts, encrypted messaging
+The documented implementation now covers Tasks 1-23: shared contracts, encrypted messaging
 and attachments, PostgreSQL persistence, Redis-backed delivery, offline client
 storage and synchronisation, the PySide6 interface, administration/monitoring,
 Debian deployment, Windows packaging, and automated full-system test evidence.
 Live infrastructure, usability, accessibility, and clean-machine acceptance items
 that have not run are explicitly retained in the
-[acceptance matrix](documentation/testing/acceptance-matrix.md). Start with the
-[repository index](documentation/INDEX.md) and the
+[acceptance matrix](documentation/testing/acceptance-matrix.md). **No release
+candidate has been issued:** the production client backend, final Windows installer,
+and clean-environment acceptance remain blocked as recorded in the
+[release status](documentation/release/release-candidate-status.md). Start with the
+[complete startup guide](documentation/guides/complete-startup-guide.md), the
+[repository index](documentation/INDEX.md), and the
 [testing strategy](documentation/testing/testing-strategy.md).
 
 ## Requirements
@@ -61,7 +65,7 @@ alembic upgrade head --sql
 alembic upgrade head
 ```
 
-## Running the applications
+## Running the development applications
 
 Validate and start the development server:
 
@@ -82,6 +86,11 @@ The checked-in client configuration targets the eventual encrypted LAN endpoint
 set its HTTP/WebSocket endpoints to `http://127.0.0.1:8443` and
 `ws://127.0.0.1:8443/api/v1/ws`, with
 `application.environment: development`.
+
+The current packaged/default client deliberately uses an unavailable presentation
+backend because its production HTTP/WebSocket/storage/cryptography composition has
+not been implemented. The window can be exercised, but server-backed login and
+messaging cannot yet succeed. Do not treat a UI smoke run as end-to-end acceptance.
 
 The Debian server and Windows client have separate settings models, loaders,
 configuration files, and environment-variable namespaces. See

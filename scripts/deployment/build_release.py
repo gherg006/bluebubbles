@@ -20,7 +20,7 @@ RELEASE_INPUTS: Final = (
     "config",
     "deployment",
     "scripts/deployment",
-    "documentation/operations",
+    "documentation",
     "alembic.ini",
     "pyproject.toml",
     "pylock.toml",
@@ -76,7 +76,12 @@ class ServerReleaseBuilder:
                     shutil.copytree(
                         source,
                         destination,
-                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+                        ignore=shutil.ignore_patterns(
+                            "__pycache__",
+                            "*.pyc",
+                            "*.pyo",
+                            "release-candidate-assessment-*.json",
+                        ),
                     )
                 else:
                     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -109,6 +114,9 @@ class ServerReleaseBuilder:
         manifest_path.write_text(
             json.dumps(manifest.model_dump(mode="json"), indent=2) + "\n",
             encoding="utf-8",
+        )
+        archive_path.with_suffix(archive_path.suffix + ".sha256").write_text(
+            f"{artifact.sha256}  {archive_path.name}\n", encoding="ascii"
         )
         return archive_path, manifest_path
 

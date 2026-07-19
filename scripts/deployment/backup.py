@@ -29,11 +29,17 @@ class BackupPlan:
     attachments: Path
     configuration: Path
     status_file: Path
+    database_host: str = "127.0.0.1"
+    database_user: str = "bluebubbles_backup"
 
     def __post_init__(self) -> None:
         """Reject unsafe roots, names, links, and overlapping paths."""
         if not _DATABASE_PATTERN.fullmatch(self.database):
             raise ValueError("database must be a PostgreSQL identifier")
+        if not _DATABASE_PATTERN.fullmatch(self.database_user):
+            raise ValueError("database user must be a PostgreSQL identifier")
+        if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", self.database_host):
+            raise ValueError("database host must be a hostname or IP address")
         output = self.output_root.resolve()
         if not output.is_absolute() or output == Path(output.anchor):
             raise ValueError("backup output must be a non-root absolute path")
@@ -82,6 +88,10 @@ class BackupRunner:
                     "--format=custom",
                     "--file",
                     str(database_path),
+                    "--host",
+                    self._plan.database_host,
+                    "--username",
+                    self._plan.database_user,
                     self._plan.database,
                 ),
                 check=True,
@@ -178,7 +188,10 @@ class BackupRunner:
         self._plan.status_file.parent.mkdir(parents=True, mode=0o750, exist_ok=True)
         temporary = self._plan.status_file.with_suffix(".tmp")
         temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        os.chmod(temporary, 0o600)
+        os.chmod(temporary, 0o640)
+        chown = getattr(os, "chown", None)
+        if chown is not None:
+            chown(temporary, -1, self._plan.status_file.parent.stat().st_gid)
         temporary.replace(self._plan.status_file)
 
 
@@ -187,6 +200,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--database", required=True)
+    parser.add_argument("--database-host", default="127.0.0.1")
+    parser.add_argument("--database-user", default="bluebubbles_backup")
     parser.add_argument("--attachments", type=Path, required=True)
     parser.add_argument("--configuration", type=Path, required=True)
     parser.add_argument("--status-file", type=Path, required=True)
@@ -198,6 +213,8 @@ def main() -> int:
         arguments.attachments,
         arguments.configuration,
         arguments.status_file,
+        arguments.database_host,
+        arguments.database_user,
     )
     manifest = BackupRunner(plan).run(stop_service=arguments.stop_service)
     return 0 if manifest.verification is BackupResult.SUCCESS else 1

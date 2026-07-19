@@ -2,13 +2,13 @@
 
 import re
 from collections.abc import Mapping
-from string import Template
 
 _HOSTNAME_PATTERN = re.compile(
     r"^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*"
     r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$"
 )
 _VALUE_PATTERN = re.compile(r"^[A-Za-z0-9_./:@+-]{1,512}$")
+_BRACED_PLACEHOLDER = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
 
 
 class DeploymentTemplateRenderer:
@@ -18,14 +18,10 @@ class DeploymentTemplateRenderer:
         """Create a renderer and reject undeclared template placeholders."""
         if not template:
             raise ValueError("deployment template cannot be empty")
-        discovered = {
-            match.group("named") or match.group("braced")
-            for match in Template.pattern.finditer(template)
-            if match.group("named") or match.group("braced")
-        }
+        discovered = set(_BRACED_PLACEHOLDER.findall(template))
         if discovered != required_values:
             raise ValueError("template placeholders must exactly match required values")
-        self._template = Template(template)
+        self._template = template
         self._required_values = required_values
 
     def render(self, values: Mapping[str, str]) -> str:
@@ -36,4 +32,6 @@ class DeploymentTemplateRenderer:
             pattern = _HOSTNAME_PATTERN if key.endswith("hostname") else _VALUE_PATTERN
             if not pattern.fullmatch(value):
                 raise ValueError(f"unsafe deployment template value: {key}")
-        return self._template.substitute(values)
+        return _BRACED_PLACEHOLDER.sub(
+            lambda match: values[match.group(1)], self._template
+        )

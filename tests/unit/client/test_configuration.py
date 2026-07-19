@@ -46,6 +46,31 @@ def test_client_loader_reports_unknown_setting_without_value(tmp_path: Path) -> 
         ).load_client_settings()
 
 
+def test_client_loader_uses_managed_program_data_or_explicit_file(
+    tmp_path: Path,
+) -> None:
+    managed = tmp_path / "BlueBubbles" / "client.yaml"
+    managed.parent.mkdir()
+    managed.write_text(
+        "application:\n  environment: development\n"
+        "server:\n  base_url: http://127.0.0.1:9100\n"
+        "  websocket_url: ws://127.0.0.1:9100/api/v1/ws\n",
+        encoding="utf-8",
+    )
+    managed_settings = ClientConfigurationLoader(
+        environ={"PROGRAMDATA": str(tmp_path)}
+    ).load_client_settings()
+    explicit_settings = ClientConfigurationLoader(
+        environ={
+            "BLUEBUBBLES_CLIENT_CONFIG_FILE": str(managed),
+            "BLUEBUBBLES_CLIENT_SERVER__RETRY_LIMIT": "5",
+        }
+    ).load_client_settings()
+
+    assert managed_settings.server.base_url.port == 9100
+    assert explicit_settings.server.retry_limit == 5
+
+
 def test_production_client_requires_encrypted_verified_transport() -> None:
     with pytest.raises(ValidationError, match="https and wss"):
         ClientSettings.model_validate(

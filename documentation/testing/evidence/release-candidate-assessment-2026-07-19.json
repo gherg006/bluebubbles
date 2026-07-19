@@ -1,0 +1,49 @@
+{
+  "application_version": "0.1.0",
+  "assessed_at": "2026-07-19T14:26:45.634551+00:00",
+  "eligible": false,
+  "gates": [
+    {
+      "code": "RC-QUALITY-001",
+      "passed": true,
+      "severity": "critical",
+      "detail": "Both point-in-time dependency audits contain no known vulnerabilities."
+    },
+    {
+      "code": "RC-SERVER-001",
+      "passed": true,
+      "severity": "critical",
+      "detail": "The server archive exists and matches every external manifest record."
+    },
+    {
+      "code": "RC-INSTALLER-001",
+      "passed": false,
+      "severity": "critical",
+      "detail": "A non-empty versioned Windows Setup executable exists."
+    },
+    {
+      "code": "RC-CLIENT-001",
+      "passed": false,
+      "severity": "critical",
+      "detail": "The packaged client composes a real production UiBackend."
+    },
+    {
+      "code": "RC-ACCEPTANCE-001",
+      "passed": false,
+      "severity": "critical",
+      "detail": "The acceptance matrix has no PARTIAL or NOT RUN result."
+    },
+    {
+      "code": "RC-DOCS-001",
+      "passed": true,
+      "severity": "high",
+      "detail": "Every mandatory consolidated document exists."
+    },
+    {
+      "code": "RC-SOURCE-001",
+      "passed": false,
+      "severity": "high",
+      "detail": "The source worktree contains no uncommitted release changes."
+    }
+  ]
+}

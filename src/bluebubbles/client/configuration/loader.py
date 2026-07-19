@@ -32,11 +32,23 @@ class ClientConfigurationLoader:
         environ: Mapping[str, str] | None = None,
     ) -> None:
         """Create a loader with injectable sources for deterministic tests."""
-        project_root = Path(__file__).resolve().parents[4]
-        self._config_file = (
-            config_file or project_root / "config" / "client" / "default.yaml"
-        )
         self._environ = environ if environ is not None else current_environment()
+        project_root = Path(__file__).resolve().parents[4]
+        packaged_default = project_root / "config" / "client" / "default.yaml"
+        configured_path = self._environ.get("BLUEBUBBLES_CLIENT_CONFIG_FILE")
+        program_data = self._environ.get("PROGRAMDATA")
+        managed_default = (
+            Path(program_data) / "BlueBubbles" / "client.yaml" if program_data else None
+        )
+        self._config_file = config_file or (
+            Path(configured_path).expanduser()
+            if configured_path
+            else (
+                managed_default
+                if managed_default is not None and managed_default.is_file()
+                else packaged_default
+            )
+        )
 
     def load_client_settings(
         self, *, overrides: Mapping[str, Any] | None = None
@@ -61,6 +73,11 @@ class ClientConfigurationLoader:
 
     def load_environment_values(self) -> dict[str, Any]:
         """Load only variables in the client-specific namespace."""
+        values = {
+            key: value
+            for key, value in self._environ.items()
+            if key != "BLUEBUBBLES_CLIENT_CONFIG_FILE"
+        }
         return environment_overrides(
-            self._environ, prefix="BLUEBUBBLES_CLIENT_", aliases=_ALIASES
+            values, prefix="BLUEBUBBLES_CLIENT_", aliases=_ALIASES
         )

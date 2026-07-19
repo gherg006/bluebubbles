@@ -1,0 +1,82 @@
+# API and WebSocket reference
+
+Generated from the FastAPI route table. Production disables interactive API documentation. Protected HTTP routes require a bearer access token; the WebSocket authenticates with its first validated client envelope.
+
+| Method | Path | Purpose | Response |
+|---|---|---|---|
+| `DELETE` | `/api/v1/attachments/uploads/{upload_id}` | cancel_upload | `Response` |
+| `DELETE` | `/api/v1/auth/sessions/{session_id}` | revoke_session | `Response` |
+| `DELETE` | `/api/v1/contacts/{contact_id}` | remove_contact | `Response` |
+| `DELETE` | `/api/v1/groups/{group_id}/members/{user_id}` | remove_member | `Response` |
+| `DELETE` | `/api/v1/messages/{message_id}` | delete_message | `DeletedMessageResponse` |
+| `GET` | `/` | application_information | `dict` |
+| `GET` | `/api/v1/admin/alerts` | list_alerts | `tuple` |
+| `GET` | `/api/v1/admin/audit` | query_audit | `AuditPageResponse` |
+| `GET` | `/api/v1/admin/capabilities` | capabilities | `AdministrativeCapabilities` |
+| `GET` | `/api/v1/admin/configuration/history` | configuration_history | `tuple` |
+| `GET` | `/api/v1/admin/configuration` | configuration | `ConfigurationSummary` |
+| `GET` | `/api/v1/admin/connections` | list_connections | `ConnectionListResponse` |
+| `GET` | `/api/v1/admin/dashboard` | dashboard | `AdminDashboardResponse` |
+| `GET` | `/api/v1/admin/diagnostics` | diagnostics | `ServerDiagnosticReport` |
+| `GET` | `/api/v1/admin/exports/{job_id}/download` | download_audit_export | `Response` |
+| `GET` | `/api/v1/admin/exports/{job_id}` | audit_export_status | `DataExportJobResponse` |
+| `GET` | `/api/v1/admin/health` | detailed_health | `DetailedHealthResponse` |
+| `GET` | `/api/v1/admin/maintenance` | maintenance_state | `MaintenanceStateResponse` |
+| `GET` | `/api/v1/admin/users/{user_id}/sessions` | list_user_sessions | `SessionListResponse` |
+| `GET` | `/api/v1/admin/users` | search_users | `AdminUserPageResponse` |
+| `GET` | `/api/v1/admin/workers` | list_workers | `WorkerListResponse` |
+| `GET` | `/api/v1/attachments/uploads/{upload_id}` | upload_status | `UploadStatusResponse` |
+| `GET` | `/api/v1/attachments/{attachment_id}/chunks/{chunk_index}` | download_chunk | `Response` |
+| `GET` | `/api/v1/attachments/{attachment_id}` | get_attachment | `AuthorisedAttachmentResponse` |
+| `GET` | `/api/v1/auth/me` | current_profile | `UserProfileResponse` |
+| `GET` | `/api/v1/auth/sessions` | list_sessions | `SessionListResponse` |
+| `GET` | `/api/v1/contacts` | list_contacts | `ContactListResponse` |
+| `GET` | `/api/v1/conversations/{conversation_id}/messages` | list_messages | `MessagePageResponse` |
+| `GET` | `/api/v1/conversations/{conversation_id}` | get_conversation | `ConversationResponse` |
+| `GET` | `/api/v1/conversations` | list_conversations | `CursorPage[ConversationSummaryResponse]` |
+| `GET` | `/api/v1/users/search` | search_users | `UserSearchResponse` |
+| `GET` | `/api/v1/users/{user_id}/keys` | get_user_keys | `PublicUserKeyResponse` |
+| `GET` | `/api/v1/users/{user_id}` | get_user | `UserProfileResponse` |
+| `GET` | `/health/live` | liveness | `PublicHealthResponse` |
+| `GET` | `/health/ready` | readiness | `PublicHealthResponse` |
+| `PATCH` | `/api/v1/contacts/{contact_id}/block` | block_contact | `ContactSummary` |
+| `PATCH` | `/api/v1/contacts/{contact_id}/favourite` | favourite_contact | `ContactSummary` |
+| `PATCH` | `/api/v1/contacts/{contact_id}` | update_contact | `ContactSummary` |
+| `PATCH` | `/api/v1/groups/{group_id}/roles` | change_role | `Response` |
+| `PATCH` | `/api/v1/groups/{group_id}` | update_group | `Response` |
+| `PATCH` | `/api/v1/messages/{message_id}` | edit_message | `EncryptedMessageResponse` |
+| `PATCH` | `/api/v1/users/profile` | update_profile | `UserProfileResponse` |
+| `POST` | `/api/v1/admin/alerts/{alert_id}/acknowledge` | acknowledge_alert | `SecurityAlertResponse` |
+| `POST` | `/api/v1/admin/alerts/{alert_id}/resolve` | resolve_alert | `SecurityAlertResponse` |
+| `POST` | `/api/v1/admin/announcements/{announcement_id}/withdraw` | withdraw_announcement | `AnnouncementResponse` |
+| `POST` | `/api/v1/admin/announcements` | publish_announcement | `AnnouncementResponse` |
+| `POST` | `/api/v1/admin/audit/verify` | verify_audit | `AuditVerificationResponse` |
+| `POST` | `/api/v1/admin/configuration` | update_configuration | `ConfigurationSummary` |
+| `POST` | `/api/v1/admin/connections/{connection_id}/disconnect` | disconnect_connection | `dict` |
+| `POST` | `/api/v1/admin/exports` | create_audit_export | `DataExportJobResponse` |
+| `POST` | `/api/v1/admin/maintenance` | change_maintenance | `MaintenanceStateResponse` |
+| `POST` | `/api/v1/admin/sessions/{session_id}/revoke` | revoke_session | `SessionRevocationResult` |
+| `POST` | `/api/v1/admin/users/{user_id}/disable` | disable_user | `UserAdministrationResult` |
+| `POST` | `/api/v1/admin/users/{user_id}/enable` | enable_user | `UserAdministrationResult` |
+| `POST` | `/api/v1/admin/users/{user_id}/role` | change_role | `UserAdministrationResult` |
+| `POST` | `/api/v1/admin/workers/{worker_name}/run` | run_worker | `WorkerStatusResponse` |
+| `POST` | `/api/v1/attachments/uploads/{upload_id}/complete` | complete_upload | `AttachmentResponse` |
+| `POST` | `/api/v1/attachments/uploads` | initialise_upload | `InitialiseUploadResponse` |
+| `POST` | `/api/v1/auth/login` | login | `LoginResponse` |
+| `POST` | `/api/v1/auth/logout-all` | logout_all | `Response` |
+| `POST` | `/api/v1/auth/logout` | logout | `Response` |
+| `POST` | `/api/v1/auth/refresh` | refresh | `RefreshTokenResponse` |
+| `POST` | `/api/v1/contacts` | add_contact | `ContactSummary` |
+| `POST` | `/api/v1/conversations/direct` | create_direct | `ConversationResponse` |
+| `POST` | `/api/v1/conversations/group` | create_group | `ConversationResponse` |
+| `POST` | `/api/v1/conversations/{conversation_id}/archive` | archive_conversation | `Response` |
+| `POST` | `/api/v1/conversations/{conversation_id}/read` | mark_read | `Response` |
+| `POST` | `/api/v1/groups/{group_id}/leave` | leave_group | `Response` |
+| `POST` | `/api/v1/groups/{group_id}/members` | add_member | `Response` |
+| `POST` | `/api/v1/groups/{group_id}/owner` | transfer_ownership | `Response` |
+| `POST` | `/api/v1/keys/{key_id}/revoke` | revoke_key | `Response` |
+| `POST` | `/api/v1/keys` | register_key | `PublicKeyDescriptor` |
+| `POST` | `/api/v1/messages` | send_message | `SendMessageResponse` |
+| `PUT` | `/api/v1/attachments/uploads/{upload_id}/chunks/{chunk_index}` | upload_chunk | `UploadChunkResponse` |
+| `WSS` | `/api/v1/ws` | Authenticated event stream | `events` |
+| `WSS` | `/ws` | Authenticated event stream | `events` |

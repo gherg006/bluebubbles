@@ -32,6 +32,12 @@ instead of the complete repository or repeated master specification.
 | Full-system testing and acceptance | `testing/testing-strategy.md`, `testing/acceptance-matrix.md` | `tests`, `scripts/testing`, `.github/workflows/quality.yml` |
 | Administration incident response | `operations/administration-runbooks.md` | Administrative API, dashboard, health and audit evidence |
 | Installation, backup, restore and upgrade | `operations/deployment-and-installation.md`, `operations/backup-restore-upgrade.md` | Debian/Nginx/systemd templates, release, backup and packaging scripts |
+| Foolproof Debian/Windows startup | `guides/complete-startup-guide.md` | ordered clean-host setup and troubleshooting |
+| User, administrator and developer manuals | `guides/user-guide.md`, `guides/administrator-guide.md`, `guides/developer-guide.md` | role-specific operation and development |
+| Architecture, security and algorithms | `architecture/system-architecture.md`, `architecture/algorithms-and-pseudocode.md`, `security/security-and-cryptography.md` | diagrams, trust boundaries and pseudocode |
+| Generated configuration/API reference | `reference/configuration-reference.md`, `reference/api-and-websocket-reference.md` | `scripts/documentation/generate_reference.py` |
+| Release decision and limitations | `release/release-candidate-status.md`, `release/release-candidate-checklist.md`, `release/known-limitations-and-evaluation.md` | fail-closed candidate assessor |
+| Safe decommissioning | `operations/decommissioning.md` | preserve-first service removal and separate data destruction |
 
 Each finished stage also has a `development/task-NN-execution-report.md` containing
 its exact completion boundary, compatibility decisions, verification evidence, and
